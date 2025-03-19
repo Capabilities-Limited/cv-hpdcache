@@ -88,6 +88,7 @@ USER_CPPFLAGS       += -I$(TB_DIR)/include \
                        -I$(TB_DIR)/sc_verif_lib/modules/mem_model/include \
                        -I$(MINIZ_DIR) \
                        -DDEBUG_HPDCACHE_TEST_SCOREBOARD=1 \
+		       -std=c++17 \
                        -DDEBUG_HPDCACHE_TEST_MEM_RESP_MODEL=1 \
                        $(if $(filter 1,$(CONF_HPDCACHE_DPI)),-DHPDCACHE_DPI_ON=1) \
                        $(if $(filter 1,$(DEBUG)),-DDEBUG) \
