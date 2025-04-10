@@ -14,15 +14,17 @@ module hpdcache_sram_wbyteenable_1rw
     parameter int unsigned DEPTH = 2**ADDR_SIZE
 )
 (
-    input  logic                   clk,
-    input  logic                   rst_n,
-    input  logic                   cs,
-    input  logic                   we,
-    input  logic [ADDR_SIZE-1:0]   addr,
-    input  logic [DATA_SIZE-1:0]   wdata,
-    input  logic [DATA_SIZE/8-1:0] wbyteenable,
-    output logic [DATA_SIZE-1:0]   rdata
+    input  logic                         clk,
+    input  logic                         rst_n,
+    input  logic                         cs,
+    input  logic                         we,
+    input  logic [ADDR_SIZE-1:0]         addr,
+    input  logic [DATA_SIZE-1:0]         wdata,
+    input  logic [(DATA_SIZE+8-1)/8-1:0] wbyteenable,
+    output logic [DATA_SIZE-1:0]         rdata
 );
+
+localparam ATOM_SIZE = DATA_SIZE >= 8 ? 8 : DATA_SIZE;
 
 logic [DATA_SIZE-1:0] sram_wmask;
 
@@ -40,8 +42,8 @@ hpdcache_sram_wmask_1rw #(
     .rdata
 );
 
-for (i = 0; i < DATA_SIZE/8; i++) begin : gen_wmask
-    assign sram_wmask[(i+1)*8:i*8] = wbyteenable[i] == 1'b1 ? 8'hff : 8'h00;
+for (i = 0; i < (DATA_SIZE+8-1)/8; i++) begin : gen_wmask
+    assign sram_wmask[(i+1)*ATOM_SIZE:i*ATOM_SIZE] = wbyteenable[i] == 1'b1 ? ATOM_SIZE'(~0) : ATOM_SIZE'(0);
 end
 
 endmodule

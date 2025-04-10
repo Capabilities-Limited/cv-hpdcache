@@ -766,10 +766,10 @@ import hpdcache_pkg::*;
         //  demultiplex the byte-enable
         hpdcache_demux #(
             .NOUTPUT     (MEM_REQ_RATIO),
-            .DATA_WIDTH  (HPDcacheCfg.reqDataWidth/8)
+            .DATA_WIDTH  ((HPDcacheCfg.reqDataWidth+8-1)/8)
         ) mem_write_be_demux_i (
             .data_i      (req_be_q),
-            .sel_i       (req_addr_q[$clog2(HPDcacheCfg.reqDataWidth/8) +:
+            .sel_i       (req_addr_q[$clog2((HPDcacheCfg.reqDataWidth+8-1)/8) +:
                                      MEM_REQ_WORD_INDEX_WIDTH]),
             .data_o      (mem_req_write_data_o.mem_req_w_be)
         );
@@ -812,7 +812,7 @@ import hpdcache_pkg::*;
             .DATA_WIDTH  (HPDcacheCfg.reqDataWidth)
         ) data_read_rsp_mux_i(
             .data_i      (mem_resp_read_i.mem_resp_r_data),
-            .sel_i       (req_addr_q[$clog2(HPDcacheCfg.reqDataWidth/8) +:
+            .sel_i       (req_addr_q[$clog2((HPDcacheCfg.reqDataWidth+8-1)/8) +:
                                      MEM_REQ_WORD_INDEX_WIDTH]),
             .data_o      (rsp_rdata_d)
         );

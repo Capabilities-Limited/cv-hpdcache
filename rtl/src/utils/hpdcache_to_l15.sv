@@ -122,7 +122,7 @@ module hpdcache_to_l15 import hpdcache_pkg::*; import wt_cache_pkg::*;
     ariane_pkg::amo_t                           req_amo_op_type;
     // Data & Byte mask sent by the request
     logic [HPDcacheMemDataWidth-1:0]            req_wdata;
-    logic [HPDcacheMemDataWidth/8-1:0]          req_wbe;
+    logic [(HPDcacheMemDataWidth+8-1)/8-1:0]    req_wbe;
     // FSM State 
     thread_id_fsm_t                             th_state_q, th_state_d;
     // HPDC Req ID
@@ -143,7 +143,7 @@ module hpdcache_to_l15 import hpdcache_pkg::*; import wt_cache_pkg::*;
     hpdcache_mem_addr_t                         req_wt_address; 
     hpdcache_pkg::hpdcache_mem_size_t           req_wt_size;
     logic [2:0]                                 req_wt_offset;
-    logic [$clog2(HPDcacheMemDataWidth/8)-1:0]  first_one_pos,num_ones;
+    logic [$clog2((HPDcacheMemDataWidth+8-1)/8)-1:0] first_one_pos,num_ones;
     // Invalidations
     logic                                       mem_inval_icache_valid;
     logic                                       mem_inval_dcache_valid;
@@ -189,7 +189,7 @@ module hpdcache_to_l15 import hpdcache_pkg::*; import wt_cache_pkg::*;
            l15_req_o.l15_blockstore           = '0, // unused in openpiton
            l15_req_o.l15_blockinitstore       = '0, // unused in openpiton
            l15_req_o.l15_l1rplway             = '0, // Not used for this adapter
-           l15_req_o.l15_be                   = swendian8B(req_wbe[0 +: 8] | req_wbe[HPDcacheMemDataWidth/8-1 -: 8]);
+           l15_req_o.l15_be                   = swendian8B(req_wbe[0 +: 8] | req_wbe[(HPDcacheMemDataWidth+8-1)/8-1 -: 8]);
 
 
     // Type of request based on the request mux index port (req_index_i: IcachePort->IMISS, DcachePort->Read DcacheWbufPort-> Write DcacheUncReadPort-> Un.Read DcacheUncWritePort-> Un. Write/AMO)
@@ -203,7 +203,7 @@ module hpdcache_to_l15 import hpdcache_pkg::*; import wt_cache_pkg::*;
     // Data sended by the request
     // If the request is a AMO_CLR, its translated as a AMO_AND. Therefore, the data sended has to be inverted
     assign req_wdata                          = (req_is_atomic & req_i.mem_req_atomic==HPDCACHE_MEM_ATOMIC_CLR) ? ~req_data_i.mem_req_w_data : req_data_i.mem_req_w_data,
-           req_wbe                            = req_data_i.mem_req_w_be[HPDcacheMemDataWidth/8-1:0]; 
+           req_wbe                            = req_data_i.mem_req_w_be[(HPDcacheMemDataWidth+8-1)/8-1:0]; 
     
     // }}}
 
@@ -363,7 +363,7 @@ module hpdcache_to_l15 import hpdcache_pkg::*; import wt_cache_pkg::*;
     always_comb
     begin: lzc_comb
         first_one_pos = '0;
-        for (int unsigned i = hpdcache_uint32'(HPDcacheMemDataWidth/8); i > 0; i--) begin
+        for (int unsigned i = hpdcache_uint32'((HPDcacheMemDataWidth+8-1)/8); i > 0; i--) begin
             if (req_wbe[i-1]) begin
                 first_one_pos = i-1;
                 break;
