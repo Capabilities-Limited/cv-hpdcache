@@ -504,7 +504,7 @@ import hpdcache_pkg::*;
                     always_comb
                     begin : data_wmask_comb
                         for (int w = 0; w < HPDcacheCfg.u.dataWaysPerRamWord; w++) begin
-                            for (int b = 0; b < HPDcacheCfg.u.wordWidth/8; b++) begin
+                            for (int b = 0; b < (HPDcacheCfg.u.wordWidth+8-1)/8; b++) begin
                                 data_wmask[w][8*b +: 8] = {8{data_wbyteenable[y][x][w][b]}};
                             end
                         end
@@ -760,7 +760,7 @@ import hpdcache_pkg::*;
         //  demux request BE
         hpdcache_demux #(
             .NOUTPUT     (HPDCACHE_DATA_REQ_RATIO),
-            .DATA_WIDTH  (HPDcacheCfg.reqDataWidth/8),
+            .DATA_WIDTH  ((HPDcacheCfg.reqDataWidth+8-1)/8),
             .ONE_HOT_SEL (1'b0)
         ) data_req_write_be_demux_i (
             .data_i      (data_req_write_be_i),
@@ -779,7 +779,7 @@ import hpdcache_pkg::*;
 
         hpdcache_demux #(
             .NOUTPUT          (HPDCACHE_DATA_REQ_RATIO),
-            .DATA_WIDTH       (HPDcacheCfg.reqDataWidth/8),
+            .DATA_WIDTH       ((HPDcacheCfg.reqDataWidth+8-1)/8),
             .ONE_HOT_SEL      (1'b0)
         ) amo_be_demux_i(
             .data_i           (data_amo_write_be_i),
@@ -811,7 +811,7 @@ import hpdcache_pkg::*;
                 data_write        = 1'b1;
                 data_write_enable = 1'b1;
                 data_write_set    = data_refill_set_i;
-                data_write_size   = hpdcache_req_size_t'($clog2(HPDcacheCfg.accessWidth/8));
+                data_write_size   = hpdcache_req_size_t'($clog2((HPDcacheCfg.accessWidth+8-1)/8));
                 data_write_word   = data_refill_word_i;
                 data_write_data   = data_refill_data_i;
                 data_write_be     = '1;

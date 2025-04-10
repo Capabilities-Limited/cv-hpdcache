@@ -113,16 +113,16 @@
     `HPDCACHE_USEREN_DECL_REQ_T(__offset_t, __data_t, __be_t, __sid_t, __tid_t, __tag_t, logic[0:0])
 
 `define HPDCACHE_USEREN_TYPEDEF_REQ_ATTR_T(__offset_t, __word_t, __word_be_t, __data_t, __be_t, __sid_t, __tid_t, __tag_t, __user_t, __params) \
-    typedef logic             [         __params.tagWidth-1:0] __tag_t; \
-    typedef logic             [      __params.u.wordWidth-1:0] __word_t; \
-    typedef logic             [    __params.u.wordWidth/8-1:0] __word_be_t; \
-    typedef logic             [   __params.reqOffsetWidth-1:0] __offset_t; \
-    typedef __word_t          [       __params.u.reqWords-1:0] __data_t; \
-    typedef __word_be_t       [       __params.u.reqWords-1:0] __be_t; \
-    typedef logic             [  __params.u.reqSrcIdWidth-1:0] __sid_t; \
-    typedef logic             [__params.u.reqTransIdWidth-1:0] __tid_t; \
-    typedef logic             [  __params.u.wordUserWidth-1:0] __word_user_req_t; \
-    typedef __word_user_req_t [       __params.u.reqWords-1:0] __user_t
+    typedef logic             [           __params.tagWidth-1:0] __tag_t; \
+    typedef logic             [        __params.u.wordWidth-1:0] __word_t; \
+    typedef logic             [(__params.u.wordWidth+8-1)/8-1:0] __word_be_t; \
+    typedef logic             [     __params.reqOffsetWidth-1:0] __offset_t; \
+    typedef __word_t          [         __params.u.reqWords-1:0] __data_t; \
+    typedef __word_be_t       [         __params.u.reqWords-1:0] __be_t; \
+    typedef logic             [    __params.u.reqSrcIdWidth-1:0] __sid_t; \
+    typedef logic             [  __params.u.reqTransIdWidth-1:0] __tid_t; \
+    typedef logic             [    __params.u.wordUserWidth-1:0] __word_user_req_t; \
+    typedef __word_user_req_t [         __params.u.reqWords-1:0] __user_t
 
 `define HPDCACHE_TYPEDEF_REQ_ATTR_T(__offset_t, __word_t, __word_be_t, __data_t, __be_t, __sid_t, __tid_t, __tag_t, __params) \
     `HPDCACHE_USEREN_TYPEDEF_REQ_ATTR_T(__offset_t, __word_t, __word_be_t, __data_t, __be_t, __sid_t, __tid_t, __tag_t, unused_user_req_attr_t, __params)

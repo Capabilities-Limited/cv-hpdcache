@@ -30,14 +30,14 @@
     parameter int unsigned DEPTH = 2**ADDR_SIZE
 )
 (
-    input  logic                   clk,
-    input  logic                   rst_n,
-    input  logic                   cs,
-    input  logic                   we,
-    input  logic [ADDR_SIZE-1:0]   addr,
-    input  logic [DATA_SIZE-1:0]   wdata,
-    input  logic [DATA_SIZE/8-1:0] wbyteenable,
-    output logic [DATA_SIZE-1:0]   rdata
+    input  logic                         clk,
+    input  logic                         rst_n,
+    input  logic                         cs,
+    input  logic                         we,
+    input  logic [ADDR_SIZE-1:0]         addr,
+    input  logic [DATA_SIZE-1:0]         wdata,
+    input  logic [(DATA_SIZE+8-1)/8-1:0] wbyteenable,
+    output logic [DATA_SIZE-1:0]         rdata
 );
 
 endmodule
