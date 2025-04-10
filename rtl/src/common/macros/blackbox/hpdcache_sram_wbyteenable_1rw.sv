@@ -18,14 +18,14 @@
     parameter int unsigned NDATA = 1
 )
 (
-    input  logic                              clk,
-    input  logic                              rst_n,
-    input  logic                              cs,
-    input  logic                              we,
-    input  logic [ADDR_SIZE-1:0]              addr,
-    input  logic [NDATA-1:0][DATA_SIZE-1:0]   wdata,
-    input  logic [NDATA-1:0][DATA_SIZE/8-1:0] wbyteenable,
-    output logic [NDATA-1:0][DATA_SIZE-1:0]   rdata
+    input  logic                                    clk,
+    input  logic                                    rst_n,
+    input  logic                                    cs,
+    input  logic                                    we,
+    input  logic [ADDR_SIZE-1:0]                    addr,
+    input  logic [NDATA-1:0][DATA_SIZE-1:0]         wdata,
+    input  logic [NDATA-1:0][(DATA_SIZE+8-1)/8-1:0] wbyteenable,
+    output logic [NDATA-1:0][DATA_SIZE-1:0]         rdata
 );
 
 endmodule

@@ -924,7 +924,7 @@ import hpdcache_pkg::*;
                 data_write        = 1'b1;
                 data_write_enable = 1'b1;
                 data_write_set    = data_refill_set_i;
-                data_write_size   = hpdcache_req_size_t'($clog2(HPDcacheCfg.accessWidth/8));
+                data_write_size   = hpdcache_req_size_t'($clog2((HPDcacheCfg.accessWidth+8-1)/8));
                 data_write_word   = data_refill_word_i;
                 data_write_data   = data_refill_data_i;
                 data_write_be     = '1;
