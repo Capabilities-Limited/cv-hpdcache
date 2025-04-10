@@ -47,7 +47,7 @@ public:
     sc_out <uint32_t>                            core_req_pma_o;
 
     sc_in  <bool>                                core_rsp_valid_i;
-    sc_in  <sc_bv<HPDCACHE_CORE_RSP_WIDTH> >     core_rsp_i;
+    sc_in  <uint32_t>                            core_rsp_i;
 
     sc_fifo_out<hpdcache_test_transaction_req>   sb_core_req_o;
     sc_fifo_out<hpdcache_test_transaction_resp>  sb_core_resp_o;

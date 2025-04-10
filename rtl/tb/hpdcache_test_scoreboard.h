@@ -249,8 +249,8 @@ private:
     std::shared_ptr<hpdcache_test_sequence> seq;
     std::shared_ptr<hpdcache_test_mem_resp_model_base> mem_resp_model;
 
-    static constexpr unsigned int CORE_REQ_WORDS      = HPDCACHE_REQ_DATA_WIDTH/64;
-    static constexpr unsigned int CORE_REQ_WORD_BYTES = 8;
+    static constexpr unsigned int CORE_REQ_WORDS      = HPDCACHE_REQ_DATA_WIDTH/HPDCACHE_WORD_WIDTH;
+    static constexpr unsigned int CORE_REQ_WORD_BYTES = (HPDCACHE_WORD_WIDTH + 8-1)/8;
     static constexpr unsigned int CORE_REQ_BYTES      = CORE_REQ_WORDS*CORE_REQ_WORD_BYTES;
 
     struct inflight_entry_t {

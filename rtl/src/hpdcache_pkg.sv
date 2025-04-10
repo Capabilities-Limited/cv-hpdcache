@@ -491,7 +491,7 @@ package hpdcache_pkg;
         ret.clWidth = p.clWords * p.wordWidth;
         ret.clOffsetWidth = $clog2(ret.clWidth / 8);
         ret.clWordIdxWidth = $clog2(p.clWords);
-        ret.wordByteIdxWidth = $clog2(p.wordWidth / 8);
+        ret.wordByteIdxWidth = $clog2((p.wordWidth + 8 - 1) / 8);
         ret.wayIndexWidth = (p.ways > 1) ? $clog2(p.ways) : 1;
         ret.setWidth = $clog2(p.sets);
         ret.nlineWidth = p.paWidth - ret.clOffsetWidth;
@@ -499,7 +499,7 @@ package hpdcache_pkg;
         ret.reqWordIdxWidth = $clog2(p.reqWords);
         ret.reqOffsetWidth = p.paWidth - ret.tagWidth;
         ret.reqDataWidth = p.reqWords * p.wordWidth;
-        ret.reqDataBytes = ret.reqDataWidth/8;
+        ret.reqDataBytes = (ret.reqDataWidth + 8 - 1)/8;
 
         ret.mshrSetWidth = (p.mshrSets > 1) ? $clog2(p.mshrSets) : 1;
         ret.mshrWayWidth = (p.mshrWays > 1) ? $clog2(p.mshrWays) : 1;

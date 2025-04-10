@@ -145,6 +145,8 @@
 #define HPDCACHE_NLINE_WIDTH             ((HPDCACHE_PA_WIDTH) - (HPDCACHE_CL_OFFSET_WIDTH))
 #define HPDCACHE_TAG_WIDTH               ((HPDCACHE_NLINE_WIDTH) - (HPDCACHE_SET_WIDTH))
 #define HPDCACHE_ADDR_OFFSET_WIDTH       ((HPDCACHE_PA_WIDTH) - (HPDCACHE_TAG_WIDTH))
+#define HPDCACHE_WORD_BE_WIDTH           ((HPDCACHE_WORD_WIDTH + 8 - 1)/8)
+#define HPDCACHE_REQ_BE_WIDTH            ((HPDCACHE_REQ_WORDS)*(HPDCACHE_WORD_BE_WIDTH))
 
 #define HPDCACHE_REQ_OP_WIDTH            5
 #define HPDCACHE_REQ_SIZE_WIDTH          3
@@ -157,7 +159,7 @@
 #define HPDCACHE_CORE_REQ_WIDTH          ((HPDCACHE_ADDR_OFFSET_WIDTH) + \
                                           (HPDCACHE_REQ_DATA_WIDTH) + \
                                           (HPDCACHE_REQ_OP_WIDTH) + \
-                                          ((HPDCACHE_REQ_DATA_WIDTH)/8) + \
+                                          (HPDCACHE_REQ_BE_WIDTH) + \
                                           (HPDCACHE_REQ_SIZE_WIDTH) + \
                                           (HPDCACHE_REQ_SRC_ID_WIDTH) + \
                                           (HPDCACHE_REQ_TRANS_ID_WIDTH) + \

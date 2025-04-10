@@ -360,7 +360,7 @@ private:
     sc_core::sc_signal <uint64_t> core_req_tag;
     sc_core::sc_signal <uint32_t> core_req_pma;
     sc_core::sc_signal <bool> core_rsp_valid;
-    sc_core::sc_signal <sc_bv<HPDCACHE_CORE_RSP_WIDTH> > core_rsp;
+    sc_core::sc_signal <uint32_t> core_rsp;
 
     sc_core::sc_signal <bool> mem_req_read_ready;
     sc_core::sc_signal <bool> mem_req_read_valid;
