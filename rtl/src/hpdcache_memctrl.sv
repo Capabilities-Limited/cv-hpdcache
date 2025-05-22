@@ -189,7 +189,9 @@ import hpdcache_pkg::*;
             3'h0,
             3'h1,
             3'h2,
-            3'h3:    ret = hpdcache_data_row_enable_t'({ 64/hpdcacheCfg.u.wordWidth{1'b1}});
+            3'h3,
+            //3'h3:    ret = hpdcache_data_row_enable_t'({ 64/hpdcacheCfg.u.wordWidth{1'b1}});
+            // TODO what is the proper way to support 128-bit word?
             3'h4:    ret = hpdcache_data_row_enable_t'({128/hpdcacheCfg.u.wordWidth{1'b1}});
             3'h5:    ret = hpdcache_data_row_enable_t'({256/hpdcacheCfg.u.wordWidth{1'b1}});
             default: ret = hpdcache_data_row_enable_t'({512/hpdcacheCfg.u.wordWidth{1'b1}});
