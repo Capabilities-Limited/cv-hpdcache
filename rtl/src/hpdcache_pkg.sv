@@ -391,6 +391,8 @@ package hpdcache_pkg;
         int unsigned ways;
         //  Cache-Line width (words)
         int unsigned clWords;
+        //  number of user bits in a core request
+        int unsigned reqUserWidth;
         //  Number of words in the request data channels (request and response)
         int unsigned reqWords;
         //  Request transaction ID width (bits)
@@ -476,6 +478,7 @@ package hpdcache_pkg;
         int unsigned tagWidth;
         int unsigned reqWordIdxWidth;
         int unsigned reqOffsetWidth;
+        int unsigned reqUserWidth;
         int unsigned reqDataWidth;
         int unsigned reqDataBytes;
         int unsigned mshrSetWidth;
@@ -503,6 +506,7 @@ package hpdcache_pkg;
         ret.tagWidth = ret.nlineWidth - ret.setWidth;
         ret.reqWordIdxWidth = $clog2(p.reqWords);
         ret.reqOffsetWidth = p.paWidth - ret.tagWidth;
+        ret.reqUserWidth = p.reqUserWidth;
         ret.reqDataWidth = p.reqWords * p.wordWidth;
         ret.reqDataBytes = ret.reqDataWidth/8;
 
