@@ -213,6 +213,7 @@ import hpdcache_pkg::*;
     assign cmoh_dir_check_nline_hit = |dir_check_nline_hit_way_i;
 
     assign core_rsp = '{
+        ruser: '0,
         rdata: '0,
         sid: req_sid_i,
         tid: req_tid_i,
