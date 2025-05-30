@@ -480,6 +480,7 @@ package hpdcache_pkg;
         int unsigned reqWordIdxWidth;
         int unsigned reqOffsetWidth;
         int unsigned reqUserWidth;
+        int unsigned clReqUsers;
         int unsigned reqDataWidth;
         int unsigned reqDataBytes;
         int unsigned mshrSetWidth;
@@ -508,6 +509,7 @@ package hpdcache_pkg;
         ret.reqWordIdxWidth = $clog2(p.reqWords);
         ret.reqOffsetWidth = p.paWidth - ret.tagWidth;
         ret.reqUserWidth = p.reqUserWidth;
+        ret.clReqUsers = p.clWords / p.reqWords;
         ret.reqDataWidth = p.reqWords * p.wordWidth;
         ret.reqDataBytes = ret.reqDataWidth/8;
 
