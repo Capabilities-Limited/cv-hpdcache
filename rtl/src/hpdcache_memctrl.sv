@@ -23,6 +23,7 @@ import hpdcache_pkg::*;
     parameter type hpdcache_word_t = logic,
     parameter type hpdcache_way_vector_t = logic,
     parameter type hpdcache_dir_entry_t = logic,
+    parameter type hpdcache_cl_user_t = logic,
 
     parameter type hpdcache_data_word_t = logic,
     parameter type hpdcache_data_be_t = logic,
@@ -70,6 +71,7 @@ import hpdcache_pkg::*;
     input  logic                                dir_updt_wback_i,
     input  logic                                dir_updt_dirty_i,
     input  logic                                dir_updt_fetch_i,
+    input  hpdcache_cl_user_t                   dir_updt_user_i,
 
     input  logic                                dir_refill_i,
     input  hpdcache_set_t                       dir_refill_set_i,
@@ -113,6 +115,7 @@ import hpdcache_pkg::*;
     input  logic                                dir_cmo_updt_wback_i,
     input  logic                                dir_cmo_updt_dirty_i,
     input  logic                                dir_cmo_updt_fetch_i,
+    input  hpdcache_cl_user_t                   dir_cmo_updt_user_i,
 
     //          Directory Error Correction
     //          {{{
@@ -560,6 +563,7 @@ import hpdcache_pkg::*;
                         wback: dir_cmo_updt_wback_i,
                         dirty: dir_cmo_updt_dirty_i,
                         fetch: dir_cmo_updt_fetch_i,
+                        user: dir_cmo_updt_user_i,
                         tag  : dir_cmo_updt_tag_i
                     };
                 end
@@ -577,6 +581,7 @@ import hpdcache_pkg::*;
                         wback: dir_updt_wback_i,
                         dirty: dir_updt_dirty_i,
                         fetch: dir_updt_fetch_i,
+                        user: dir_updt_user_i,
                         tag  : dir_updt_tag_i
                     };
                 end

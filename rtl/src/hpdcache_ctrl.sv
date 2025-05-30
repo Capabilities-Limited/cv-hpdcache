@@ -30,6 +30,7 @@ import hpdcache_pkg::*;
     parameter type hpdcache_dir_entry_t = logic,
     parameter type hpdcache_way_vector_t = logic,
     parameter type hpdcache_way_t = logic,
+    parameter type hpdcache_cl_user_t = logic,
 
     parameter type wbuf_addr_t = logic,
     parameter type wbuf_data_t = logic,
@@ -223,6 +224,7 @@ import hpdcache_pkg::*;
     input  logic                  cmo_dir_updt_wback_i,
     input  logic                  cmo_dir_updt_dirty_i,
     input  logic                  cmo_dir_updt_fetch_i,
+    input  hpdcache_cl_user_t     cmo_dir_updt_user_i,
     input  hpdcache_tag_t         cmo_dir_updt_tag_i,
     output logic                  cmo_core_rsp_ready_o,
     input  logic                  cmo_core_rsp_valid_i,
@@ -337,6 +339,7 @@ import hpdcache_pkg::*;
     hpdcache_access_data_t   err_dat_rdata_q, err_dat_rdata_d;
     hpdcache_word_t          err_dat_word_q;
     hpdcache_access_data_t   err_dat_wdata;
+    hpdcache_cl_user_t       st2_dir_updt_user_q, st2_dir_updt_user_d;
     //  }}}
 
     //  Definition of internal signals
@@ -915,6 +918,7 @@ import hpdcache_pkg::*;
             st2_dir_updt_wback_q <= st2_dir_updt_wback_d;
             st2_dir_updt_dirty_q <= st2_dir_updt_dirty_d;
             st2_dir_updt_fetch_q <= st2_dir_updt_fetch_d;
+            st2_dir_updt_user_q  <= st2_dir_updt_user_d;
         end
     end
 
@@ -974,6 +978,7 @@ import hpdcache_pkg::*;
         .hpdcache_word_t               (hpdcache_word_t),
         .hpdcache_way_vector_t         (hpdcache_way_vector_t),
         .hpdcache_dir_entry_t          (hpdcache_dir_entry_t),
+        .hpdcache_cl_user_t            (hpdcache_cl_user_t),
         .hpdcache_data_word_t          (hpdcache_data_word_t),
         .hpdcache_data_be_t            (hpdcache_data_be_t),
         .hpdcache_req_data_t           (hpdcache_req_data_t),
@@ -1005,6 +1010,7 @@ import hpdcache_pkg::*;
         .dir_updt_wback_i              (st2_dir_updt_wback_q),
         .dir_updt_dirty_i              (st2_dir_updt_dirty_q),
         .dir_updt_fetch_i              (st2_dir_updt_fetch_q),
+        .dir_updt_user_i               (st2_dir_updt_user_q),
 
         .dir_refill_i                  (refill_write_dir_i),
         .dir_refill_set_i              (refill_set_i),
@@ -1048,6 +1054,7 @@ import hpdcache_pkg::*;
         .dir_cmo_updt_wback_i          (cmo_dir_updt_wback_i),
         .dir_cmo_updt_dirty_i          (cmo_dir_updt_dirty_i),
         .dir_cmo_updt_fetch_i          (cmo_dir_updt_fetch_i),
+        .dir_cmo_updt_user_i           (cmo_dir_updt_user_i),
 
         .dir_err_cor_o                 (st1_dir_err_cor),
         .dir_err_unc_o                 (st1_dir_err_unc),
