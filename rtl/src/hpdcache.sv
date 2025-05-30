@@ -40,6 +40,7 @@ import hpdcache_pkg::*;
     parameter type hpdcache_data_word_t = logic,
     parameter type hpdcache_data_be_t = logic,
     parameter type hpdcache_req_offset_t = logic,
+    parameter type hpdcache_req_user_t = logic,
     parameter type hpdcache_req_data_t = logic,
     parameter type hpdcache_req_be_t = logic,
     parameter type hpdcache_req_sid_t = logic,
@@ -150,6 +151,7 @@ import hpdcache_pkg::*;
     typedef logic unsigned [HPDcacheCfg.clWordIdxWidth-1:0] hpdcache_word_t;
     typedef logic unsigned [HPDcacheCfg.u.ways-1:0] hpdcache_way_vector_t;
     typedef logic unsigned [HPDcacheCfg.wayIndexWidth-1:0] hpdcache_way_t;
+    typedef hpdcache_req_user_t [HPDcacheCfg.clReqUsers-1:0] hpdcache_cl_user_t;
 
     //  Cache Directory entry definition
     //  {{{
@@ -167,6 +169,11 @@ import hpdcache_pkg::*;
         logic wback; //  cacheline in write-back mode
         logic dirty; //  cacheline is locally modified (memory is obsolete)
         logic fetch; //  cacheline is reserved for a new cacheline being fetched
+        //  }}}
+
+        //  Cacheline user metadata
+        //  {{{
+        hpdcache_cl_user_t user;
         //  }}}
 
         //  Cacheline address tag
@@ -314,6 +321,7 @@ import hpdcache_pkg::*;
     logic                  cmo_dir_updt_wback;
     logic                  cmo_dir_updt_dirty;
     logic                  cmo_dir_updt_fetch;
+    hpdcache_cl_user_t     cmo_dir_updt_user;
     hpdcache_tag_t         cmo_dir_updt_tag;
     logic                  cmo_wait;
     logic                  cmo_flush_alloc;
@@ -471,6 +479,7 @@ import hpdcache_pkg::*;
         .hpdcache_dir_entry_t               (hpdcache_dir_entry_t),
         .hpdcache_way_vector_t              (hpdcache_way_vector_t),
         .hpdcache_way_t                     (hpdcache_way_t),
+        .hpdcache_cl_user_t                 (hpdcache_cl_user_t),
         .wbuf_addr_t                        (wbuf_addr_t),
         .wbuf_data_t                        (wbuf_data_t),
         .wbuf_be_t                          (wbuf_be_t),
@@ -646,6 +655,7 @@ import hpdcache_pkg::*;
         .cmo_dir_updt_wback_i               (cmo_dir_updt_wback),
         .cmo_dir_updt_dirty_i               (cmo_dir_updt_dirty),
         .cmo_dir_updt_fetch_i               (cmo_dir_updt_fetch),
+        .cmo_dir_updt_user_i                (cmo_dir_updt_user),
         .cmo_dir_updt_tag_i                 (cmo_dir_updt_tag),
         .cmo_core_rsp_ready_o               (cmo_core_rsp_ready),
         .cmo_core_rsp_valid_i               (cmo_core_rsp_valid),
