@@ -24,16 +24,18 @@
         logic                                 mem_req_cacheable; \
     }
 
-`define HPDCACHE_DECL_MEM_RESP_R_T(__id_t, __data_t) \
+`define HPDCACHE_DECL_MEM_RESP_R_T(__id_t, __user_t, __data_t) \
     struct packed { \
         hpdcache_pkg::hpdcache_mem_error_e    mem_resp_r_error; \
         __id_t                                mem_resp_r_id; \
+        __user_t                              mem_resp_r_user; \
         __data_t                              mem_resp_r_data; \
         logic                                 mem_resp_r_last; \
     }
 
-`define HPDCACHE_DECL_MEM_REQ_W_T(__data_t, __be_t) \
+`define HPDCACHE_DECL_MEM_REQ_W_T(__user_t, __data_t, __be_t) \
     struct packed { \
+        __user_t                              mem_req_w_user; \
         __data_t                              mem_req_w_data; \
         __be_t                                mem_req_w_be; \
         logic                                 mem_req_w_last; \
@@ -46,20 +48,21 @@
         __id_t                                mem_resp_w_id; \
     }
 
-`define HPDCACHE_TYPEDEF_MEM_ATTR_T(__addr_t, __id_t, __data_t, __be_t, __params) \
+`define HPDCACHE_TYPEDEF_MEM_ATTR_T(__addr_t, __id_t, __user_t, __data_t, __be_t, __params) \
     typedef logic [  __params.u.memAddrWidth-1:0] __addr_t; \
     typedef logic [    __params.u.memIdWidth-1:0] __id_t; \
+    typedef logic [  __params.u.memUserWidth-1:0] __user_t; \
     typedef logic [  __params.u.memDataWidth-1:0] __data_t; \
     typedef logic [__params.u.memDataWidth/8-1:0] __be_t
 
 `define HPDCACHE_TYPEDEF_MEM_REQ_T(__name__, __addr_t, __id_t) \
     typedef `HPDCACHE_DECL_MEM_REQ_T(__addr_t, __id_t) __name__
 
-`define HPDCACHE_TYPEDEF_MEM_RESP_R_T(__name__, __id_t, __data_t) \
-    typedef `HPDCACHE_DECL_MEM_RESP_R_T(__id_t, __data_t) __name__
+`define HPDCACHE_TYPEDEF_MEM_RESP_R_T(__name__, __id_t, __user_t, __data_t) \
+    typedef `HPDCACHE_DECL_MEM_RESP_R_T(__id_t, __user_t, __data_t) __name__
 
-`define HPDCACHE_TYPEDEF_MEM_REQ_W_T(__name__, __data_t, __be_t) \
-    typedef `HPDCACHE_DECL_MEM_REQ_W_T(__data_t, __be_t) __name__
+`define HPDCACHE_TYPEDEF_MEM_REQ_W_T(__name__, __user_t, __data_t, __be_t) \
+    typedef `HPDCACHE_DECL_MEM_REQ_W_T(__user_t, __data_t, __be_t) __name__
 
 `define HPDCACHE_TYPEDEF_MEM_RESP_W_T(__name__, __id_t) \
     typedef `HPDCACHE_DECL_MEM_RESP_W_T(__id_t) __name__
