@@ -180,8 +180,10 @@ import hpdcache_pkg::*;
 
     typedef hpdcache_data_word_t [HPDcacheCfg.u.accessWords-1:0] hpdcache_access_data_t;
     typedef hpdcache_data_be_t [HPDcacheCfg.u.accessWords-1:0] hpdcache_access_be_t;
+    typedef logic [HPDcacheCfg.u.accessUserWidth-1:0] hpdcache_access_user_t;
 
     typedef hpdcache_req_addr_t wbuf_addr_t;
+    typedef hpdcache_req_user_t wbuf_user_t;
     typedef hpdcache_req_data_t wbuf_data_t;
     typedef hpdcache_req_be_t wbuf_be_t;
     //  }}}
@@ -200,6 +202,7 @@ import hpdcache_pkg::*;
     logic                  refill_write_data;
     hpdcache_word_t        refill_word;
     hpdcache_access_data_t refill_data;
+    hpdcache_access_user_t refill_user;
     logic                  refill_core_rsp_valid;
     hpdcache_rsp_t         refill_core_rsp;
     hpdcache_nline_t       refill_nline;
@@ -236,6 +239,7 @@ import hpdcache_pkg::*;
     logic                  wbuf_write;
     logic                  wbuf_write_ready;
     wbuf_addr_t            wbuf_write_addr;
+    wbuf_user_t            wbuf_write_user;
     wbuf_data_t            wbuf_write_data;
     wbuf_be_t              wbuf_write_be;
     logic                  wbuf_write_uncacheable;
@@ -474,9 +478,11 @@ import hpdcache_pkg::*;
         .hpdcache_way_t                     (hpdcache_way_t),
         .hpdcache_cl_user_t                 (hpdcache_cl_user_t),
         .wbuf_addr_t                        (wbuf_addr_t),
+        .wbuf_user_t                        (wbuf_user_t),
         .wbuf_data_t                        (wbuf_data_t),
         .wbuf_be_t                          (wbuf_be_t),
         .hpdcache_access_data_t             (hpdcache_access_data_t),
+        .hpdcache_access_user_t             (hpdcache_access_user_t),
         .hpdcache_access_be_t               (hpdcache_access_be_t),
         .hpdcache_req_addr_t                (hpdcache_req_addr_t),
         .hpdcache_req_offset_t              (hpdcache_req_offset_t),
@@ -537,6 +543,7 @@ import hpdcache_pkg::*;
         .refill_write_data_i                (refill_write_data),
         .refill_word_i                      (refill_word),
         .refill_data_i                      (refill_data),
+        .refill_user_i                      (refill_user),
         .refill_core_rsp_valid_i            (refill_core_rsp_valid),
         .refill_core_rsp_i                  (refill_core_rsp),
         .refill_nline_i                     (refill_nline),
@@ -567,6 +574,7 @@ import hpdcache_pkg::*;
         .wbuf_write_o                       (wbuf_write),
         .wbuf_write_ready_i                 (wbuf_write_ready),
         .wbuf_write_addr_o                  (wbuf_write_addr),
+        .wbuf_write_user_o                  (wbuf_write_user),
         .wbuf_write_data_o                  (wbuf_write_data),
         .wbuf_write_be_o                    (wbuf_write_be),
         .wbuf_write_uncacheable_o           (wbuf_write_uncacheable),
@@ -712,6 +720,7 @@ import hpdcache_pkg::*;
             .write_i                            (wbuf_write),
             .write_ready_o                      (wbuf_write_ready),
             .write_addr_i                       (wbuf_write_addr),
+            .write_user_i                       (wbuf_write_user),
             .write_data_i                       (wbuf_write_data),
             .write_be_i                         (wbuf_write_be),
             .write_uc_i                         (wbuf_write_uncacheable),
@@ -772,6 +781,7 @@ import hpdcache_pkg::*;
         .hpdcache_way_t                     (hpdcache_way_t),
         .hpdcache_dir_entry_t               (hpdcache_dir_entry_t),
         .hpdcache_refill_data_t             (hpdcache_access_data_t),
+        .hpdcache_refill_user_t             (hpdcache_access_user_t),
         .hpdcache_req_data_t                (hpdcache_req_data_t),
         .hpdcache_req_be_t                  (hpdcache_req_be_t),
         .hpdcache_req_offset_t              (hpdcache_req_offset_t),
@@ -824,6 +834,7 @@ import hpdcache_pkg::*;
         .refill_write_dir_o                 (refill_write_dir),
         .refill_write_data_o                (refill_write_data),
         .refill_data_o                      (refill_data),
+        .refill_user_o                      (refill_user),
         .refill_word_o                      (refill_word),
         .refill_nline_o                     (refill_nline),
         .refill_updt_rtab_o                 (refill_updt_rtab),

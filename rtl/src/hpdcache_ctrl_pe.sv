@@ -18,7 +18,8 @@ import hpdcache_pkg::*;
     // Parameters
     // {{{
 #(
-    parameter hpdcache_cfg_t HPDcacheCfg = '0
+    parameter hpdcache_cfg_t HPDcacheCfg = '0,
+    parameter type hpdcache_cl_user_t = logic
 )
     // }}}
     // Ports
@@ -78,6 +79,7 @@ import hpdcache_pkg::*;
     input  logic                   st1_dir_hit_wback_i,
     input  logic                   st1_dir_hit_dirty_i,
     input  logic                   st1_dir_hit_fetch_i,
+    input  logic                   st1_dir_hit_user_i, // XXX not currently used
     input  logic                   st1_dir_victim_unavailable_i,
     input  logic                   st1_dir_victim_valid_i,
     input  logic                   st1_dir_victim_wback_i,
@@ -123,11 +125,13 @@ import hpdcache_pkg::*;
     input  logic                   st2_dir_updt_wback_i,
     input  logic                   st2_dir_updt_dirty_i,
     input  logic                   st2_dir_updt_fetch_i,
+    input  hpdcache_cl_user_t      st2_dir_updt_user_i,
     output logic                   st2_dir_updt_o,
     output logic                   st2_dir_updt_valid_o,
     output logic                   st2_dir_updt_wback_o,
     output logic                   st2_dir_updt_dirty_o,
     output logic                   st2_dir_updt_fetch_o,
+    output hpdcache_cl_user_t      st2_dir_updt_user_o,
     //   }}}
 
     //   Cache data
@@ -338,6 +342,7 @@ import hpdcache_pkg::*;
         st2_dir_updt_wback_o                = st2_dir_updt_wback_i;
         st2_dir_updt_dirty_o                = st2_dir_updt_dirty_i;
         st2_dir_updt_fetch_o                = st2_dir_updt_fetch_i;
+        st2_dir_updt_user_o                 = st2_dir_updt_user_i;
 
         st2_nop                             = 1'b0;
 

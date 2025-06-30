@@ -137,7 +137,7 @@ import hpdcache_pkg::*;
             axi_w_o.data                    = req_data_i.mem_req_w_data,
             axi_w_o.strb                    = req_data_i.mem_req_w_be,
             axi_w_o.last                    = req_data_i.mem_req_w_last,
-            axi_w_o.user                    = '0;
+            axi_w_o.user                    = req_data_i.mem_req_w_user;
 
     assign  axi_b_ready_o                   = resp_ready_i,
             resp_valid_o                    = axi_b_valid_i,

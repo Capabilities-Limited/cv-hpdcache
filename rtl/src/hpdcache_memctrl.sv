@@ -62,6 +62,7 @@ import hpdcache_pkg::*;
     output logic                                dir_hit_wback_o,
     output logic                                dir_hit_dirty_o,
     output logic                                dir_hit_fetch_o,
+    output hpdcache_cl_user_t                   dir_hit_user_o,
 
     input  logic                                dir_updt_i,
     input  hpdcache_set_t                       dir_updt_set_i,
@@ -317,6 +318,7 @@ import hpdcache_pkg::*;
     logic                [HPDcacheCfg.u.ways-1:0] dir_wback;
     logic                [HPDcacheCfg.u.ways-1:0] dir_dirty;
     logic                [HPDcacheCfg.u.ways-1:0] dir_fetch;
+    hpdcache_cl_user_t   [HPDcacheCfg.u.ways-1:0] dir_user;
 
     hpdcache_data_addr_t                       data_addr;
     hpdcache_data_enable_t                     data_cs;
@@ -678,6 +680,15 @@ import hpdcache_pkg::*;
     assign dir_hit_wback_o = |(dir_hit_way_o & dir_wback);
     assign dir_hit_dirty_o = |(dir_hit_way_o & dir_dirty);
     assign dir_hit_fetch_o = |(dir_hit_way_o & dir_fetch);
+    hpdcache_mux #(
+        .NINPUT      (HPDcacheCfg.u.ways),
+        .DATA_WIDTH  (HPDcacheCfg.reqUserWidth),
+        .ONE_HOT_SEL (1'b1)
+    ) hit_user_mux_i(
+        .data_i      (dir_user),
+        .sel_i       (dir_hit_way_o),
+        .data_o      (dir_hit_user_o)
+    );
 
     assign dir_cmo_check_nline_wback_o = |(dir_cmo_check_nline_hit_way_o & dir_wback);
     assign dir_cmo_check_nline_dirty_o = |(dir_cmo_check_nline_hit_way_o & dir_dirty);
@@ -730,6 +741,7 @@ import hpdcache_pkg::*;
         assign dir_wback[gen_i] = dir_rentry[gen_i].wback;
         assign dir_dirty[gen_i] = dir_rentry[gen_i].dirty;
         assign dir_fetch[gen_i] = dir_rentry[gen_i].fetch;
+        assign dir_user[gen_i] = dir_rentry[gen_i].user;
     end
 
 

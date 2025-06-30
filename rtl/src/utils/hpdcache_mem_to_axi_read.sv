@@ -90,6 +90,7 @@ import hpdcache_pkg::*;
             resp_o.mem_resp_r_error = resp,
             resp_o.mem_resp_r_id    = axi_r_i.id,
             resp_o.mem_resp_r_data  = axi_r_i.data,
+            resp_o.mem_resp_r_user  = axi_r_i.user,
             resp_o.mem_resp_r_last  = axi_r_i.last;
 
 endmodule
