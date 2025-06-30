@@ -415,6 +415,8 @@ package hpdcache_pkg;
         //  -  This limits the maximum width for the data channel from requesters
         //  -  This impacts the refill latency (more ACCESS_WORDS -> less REFILL LATENCY)
         int unsigned accessWords;
+        // number of user bits paired with accessWords
+        int unsigned accessUserWidth;
         //  MSHR number of sets
         int unsigned mshrSets;
         //  MSHR number of ways
@@ -455,6 +457,8 @@ package hpdcache_pkg;
         int unsigned memIdWidth;
         //  Width of the data in the memory interface
         int unsigned memDataWidth;
+        //  Width of the user in the memory interface
+        int unsigned memUserWidth;
         //  Enable support for the write-through policy
         bit wtEn;
         //  Enable support for the write-back policy
