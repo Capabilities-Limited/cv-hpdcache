@@ -43,8 +43,10 @@ import hpdcache_pkg::*;
     parameter type hpdcache_dir_entry_t = logic,
 
     parameter type hpdcache_refill_data_t = logic,
+    parameter type hpdcache_refill_user_t = logic,
 
     parameter type hpdcache_req_data_t = logic,
+    parameter type hpdcache_cl_user_t = logic,
     parameter type hpdcache_req_be_t = logic,
     parameter type hpdcache_req_offset_t = logic,
     parameter type hpdcache_req_sid_t = logic,
@@ -116,6 +118,7 @@ import hpdcache_pkg::*;
     output logic                  refill_write_dir_o,
     output logic                  refill_write_data_o,
     output hpdcache_refill_data_t refill_data_o,
+    output hpdcache_refill_user_t refill_user_o,
     output hpdcache_word_t        refill_word_o,
     output hpdcache_nline_t       refill_nline_o,
     output logic                  refill_updt_rtab_o,
@@ -209,10 +212,12 @@ import hpdcache_pkg::*;
 
     logic                    refill_fifo_resp_data_w, refill_fifo_resp_data_wok;
     hpdcache_refill_data_t   refill_fifo_resp_data_rdata;
+    hpdcache_refill_user_t   refill_fifo_resp_data_ruser;
     logic                    refill_fifo_resp_data_r;
 
     logic                    refill_core_rsp_valid;
     hpdcache_req_data_t      refill_core_rsp_rdata;
+    hpdcache_cl_user_t       refill_core_rsp_ruser;
     hpdcache_req_sid_t       refill_core_rsp_sid;
     hpdcache_req_tid_t       refill_core_rsp_tid;
     logic                    refill_core_rsp_error;
@@ -571,6 +576,7 @@ import hpdcache_pkg::*;
     };
 
     assign refill_core_rsp.rdata   = refill_core_rsp_rdata;
+    assign refill_core_rsp.ruser   = refill_core_rsp_ruser;
     assign refill_core_rsp.sid     = refill_core_rsp_sid;
     assign refill_core_rsp.tid     = refill_core_rsp_tid;
     assign refill_core_rsp.error   = refill_core_rsp_error;
@@ -601,11 +607,20 @@ import hpdcache_pkg::*;
             .sel_i       (refill_core_rsp_word[0 +: $clog2(REFILL_REQ_RATIO)]),
             .data_o      (refill_core_rsp_rdata)
         );
+        hpdcache_mux #(
+            .NINPUT      (REFILL_REQ_RATIO),
+            .DATA_WIDTH  (HPDcacheCfg.reqUserWidth)
+        ) user_read_rsp_mux_i(
+            .data_i      (refill_user_o),
+            .sel_i       (refill_core_rsp_word[0 +: $clog2(REFILL_REQ_RATIO)]),
+            .data_o      (refill_core_rsp_ruser)
+        );
     end
 
     //  refill's width is equal to the width of the core's interface
     else begin : gen_core_rsp_eqsize
         assign refill_core_rsp_rdata = refill_data_o;
+        assign refill_core_rsp_ruser = refill_user_o;
     end
 
     /* FIXME: when multiple chunks, in case of error, the error bit is not
@@ -652,18 +667,41 @@ import hpdcache_pkg::*;
         .rlast_o(/* unused */)
     );
 
+    hpdcache_data_resize #(
+        .WR_WIDTH (HPDcacheCfg.u.memUserWidth),
+        .RD_WIDTH (HPDcacheCfg.u.accessUserWidth),
+        .DEPTH    (HPDcacheCfg.u.refillFifoDepth)
+    ) i_user_resize(
+        .clk_i,
+        .rst_ni,
+
+        .w_i    (refill_fifo_resp_data_w),
+        .wok_o  (refill_fifo_resp_data_wok),
+        .wdata_i(mem_resp_i.mem_resp_r_user),
+        .wlast_i(mem_resp_i.mem_resp_r_last),
+
+        .r_i    (refill_fifo_resp_data_r),
+        .rok_o  (/* unused */),
+        .rdata_o(refill_fifo_resp_data_ruser),
+        .rlast_o(/* unused */)
+    );
+
     //  Refill data multiplexing logic
     //  Multiplexing has a byte granularity
     //  REFILL_REQ_RATIO is always greater or equal to 1
     //  Use `accessBytes` bytes long signals
     logic [HPDcacheCfg.accessBytes-1:0][7:0] clean_data;
+    hpdcache_refill_user_t clean_user;
 
     assign clean_data = refill_fifo_resp_data_rdata;
+    assign clean_user = refill_fifo_resp_data_ruser;
 
     if (HPDcacheCfg.u.wbEn) begin : gen_refill_dirty_data
         logic [HPDcacheCfg.accessBytes-1:0]      dirty_be;
         logic [HPDcacheCfg.accessBytes-1:0][7:0] dirty_data;
+        hpdcache_refill_user_t dirty_user;
         logic [HPDcacheCfg.accessBytes-1:0][7:0] refill_data;
+        hpdcache_refill_user_t refill_user;
 
         assign dirty_be   = {REFILL_REQ_RATIO{refill_dirty_be}};
         assign dirty_data = {REFILL_REQ_RATIO{refill_dirty_wdata}};
@@ -688,12 +726,15 @@ import hpdcache_pkg::*;
                 assign dirty_sel = refill_dirty_valid && dirty_be[i];
             end
             assign refill_data[i] = dirty_sel ? dirty_data[i] : clean_data[i];
+            assign refill_user[i] = dirty_sel ? dirty_data[i] : clean_user[i];
         end
         assign refill_data_o = hpdcache_refill_data_t'(refill_data);
+        assign refill_user_o = hpdcache_refill_user_t'(refill_user); // XXX TODO chase down refill_user
 
     end else begin : gen_refill_no_dirty_data
         // Reshape data to the expected type
         assign refill_data_o = hpdcache_refill_data_t'(clean_data);
+        assign refill_user_o = hpdcache_refill_user_t'(clean_user);
     end
 
     //      The DATA fifo is only used for refill responses

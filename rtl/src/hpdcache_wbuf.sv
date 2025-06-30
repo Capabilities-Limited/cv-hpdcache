@@ -40,6 +40,7 @@ import hpdcache_pkg::*;
     parameter type hpdcache_mem_resp_w_t = logic,
 
     localparam int unsigned WBUF_WORD_WIDTH = HPDcacheCfg.u.reqWords*HPDcacheCfg.u.wordWidth,
+    localparam type wbuf_user_t = logic [HPDcacheCfg.u.reqUserWidth-1:0],
     localparam type wbuf_data_t = logic [WBUF_WORD_WIDTH-1:0],
     localparam type wbuf_be_t = logic [WBUF_WORD_WIDTH/8-1:0]
 )
@@ -71,6 +72,7 @@ import hpdcache_pkg::*;
     input  logic                  write_i,
     output logic                  write_ready_o,
     input  wbuf_addr_t            write_addr_i,
+    input  wbuf_user_t            write_user_i,
     input  wbuf_data_t            write_data_i,
     input  wbuf_be_t              write_be_i,  // byte-enable
     input  logic                  write_uc_i,  // uncacheable write
@@ -117,6 +119,7 @@ import hpdcache_pkg::*;
                                                   HPDcacheCfg.wbufDataWidth;
     localparam int unsigned WBUF_MEM_DATA_WORD_INDEX_WIDTH = $clog2(WBUF_MEM_DATA_RATIO);
 
+    typedef wbuf_user_t [WBUF_DATA_NWORDS-1:0] wbuf_user_buf_t;
     typedef wbuf_data_t [WBUF_DATA_NWORDS-1:0] wbuf_data_buf_t;
     typedef wbuf_be_t [WBUF_DATA_NWORDS-1:0] wbuf_be_buf_t;
     typedef logic unsigned [HPDcacheCfg.wbufDirPtrWidth-1:0] wbuf_dir_ptr_t;
@@ -139,6 +142,7 @@ import hpdcache_pkg::*;
     } wbuf_dir_entry_t;
 
     typedef struct packed {
+        wbuf_user_buf_t user;
         wbuf_data_buf_t data;
         wbuf_be_buf_t   be;
     } wbuf_data_entry_t;
@@ -153,6 +157,17 @@ import hpdcache_pkg::*;
         wbuf_dir_ptr_t  meta_id;
         logic           meta_uc;
     } wbuf_send_meta_t;
+
+    function automatic void wbuf_user_write(
+            output wbuf_user_buf_t wbuf_ret_user,
+            input  wbuf_user_buf_t wbuf_old_user,
+            input  wbuf_user_buf_t wbuf_new_user,
+            input  wbuf_be_buf_t   wbuf_new_be);
+        for (int unsigned w = 0; w < WBUF_DATA_NWORDS; w++) begin
+          wbuf_ret_user[w] = |wbuf_new_be[w] ? wbuf_new_user[w]
+                                             : wbuf_old_user[w];
+        end
+    endfunction
 
     function automatic void wbuf_data_write(
             output wbuf_data_buf_t wbuf_ret_data,
@@ -220,6 +235,7 @@ import hpdcache_pkg::*;
     wbuf_send_data_t                            send_data_q;
 
     wbuf_addr_t                                 send_tag;
+    wbuf_user_buf_t                             send_user;
     wbuf_data_buf_t                             send_data;
     wbuf_be_buf_t                               send_be;
 
@@ -227,6 +243,7 @@ import hpdcache_pkg::*;
     logic                                       ack_error;
 
     wbuf_tag_t                                  write_tag;
+    wbuf_user_buf_t                             write_user;
     wbuf_data_buf_t                             write_data;
     wbuf_be_buf_t                               write_be;
 
@@ -273,6 +290,7 @@ import hpdcache_pkg::*;
     always_comb
     begin : wbuf_write_data_comb
         for (int unsigned w = 0; w < WBUF_DATA_NWORDS; w++) begin
+            write_user[w] = write_user_i;
             write_data[w] = write_data_i;
         end
     end
@@ -550,6 +568,11 @@ import hpdcache_pkg::*;
         buf_be = wbuf_data_w_init ? '0 : wbuf_data_q[wbuf_data_w_ptr].be;
 
         if (wbuf_data_w) begin
+            wbuf_user_write(
+                wbuf_data_d[wbuf_data_w_ptr].user,
+                wbuf_data_q[wbuf_data_w_ptr].user,
+                write_user,
+                write_be);
             wbuf_data_write(
                 wbuf_data_d[wbuf_data_w_ptr].data,
                 wbuf_data_d[wbuf_data_w_ptr].be,
@@ -636,6 +659,7 @@ import hpdcache_pkg::*;
     );
 
     assign send_tag        = wbuf_addr_t'(send_data_q.data_tag);
+    assign send_user       = wbuf_data_q[send_data_q.data_ptr].user;
     assign send_data       = wbuf_data_q[send_data_q.data_ptr].data;
     assign send_be         = wbuf_data_q[send_data_q.data_ptr].be;
 
@@ -684,11 +708,13 @@ import hpdcache_pkg::*;
             .data_o      (mem_req_be)
         );
 
-        assign mem_req_write_data_o.mem_req_w_data = {WBUF_MEM_DATA_RATIO{send_data}},
+        assign mem_req_write_data_o.mem_req_w_user = {WBUF_MEM_DATA_RATIO{send_user}},
+               mem_req_write_data_o.mem_req_w_data = {WBUF_MEM_DATA_RATIO{send_data}},
                mem_req_write_data_o.mem_req_w_be   = mem_req_be;
 
     end else if (WBUF_MEM_DATA_RATIO == 1) begin : gen_wbuf_data_forwarding
-        assign mem_req_write_data_o.mem_req_w_data = send_data,
+        assign mem_req_write_data_o.mem_req_w_user = send_user,
+               mem_req_write_data_o.mem_req_w_data = send_data,
                mem_req_write_data_o.mem_req_w_be   = send_be;
     end
 

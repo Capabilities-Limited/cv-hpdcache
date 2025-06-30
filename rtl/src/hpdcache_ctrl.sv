@@ -47,10 +47,12 @@ import hpdcache_pkg::*;
     parameter type hpdcache_cl_user_t = logic,
 
     parameter type wbuf_addr_t = logic,
+    parameter type wbuf_user_t = logic,
     parameter type wbuf_data_t = logic,
     parameter type wbuf_be_t = logic,
 
     parameter type hpdcache_access_data_t = logic,
+    parameter type hpdcache_access_user_t = logic,
     parameter type hpdcache_access_be_t = logic,
 
     parameter type hpdcache_req_addr_t = logic,
@@ -124,6 +126,7 @@ import hpdcache_pkg::*;
     input  logic                  refill_write_data_i,
     input  hpdcache_word_t        refill_word_i,
     input  hpdcache_access_data_t refill_data_i,
+    input  hpdcache_access_user_t refill_user_i,
     input  logic                  refill_core_rsp_valid_i,
     input  hpdcache_rsp_t         refill_core_rsp_i,
     input  hpdcache_nline_t       refill_nline_i,
@@ -157,6 +160,7 @@ import hpdcache_pkg::*;
     output logic                  wbuf_write_o,
     input  logic                  wbuf_write_ready_i,
     output wbuf_addr_t            wbuf_write_addr_o,
+    output wbuf_user_t            wbuf_write_user_o,
     output wbuf_data_t            wbuf_write_data_o,
     output wbuf_be_t              wbuf_write_be_o,
     output logic                  wbuf_write_uncacheable_o,
@@ -379,6 +383,7 @@ import hpdcache_pkg::*;
     logic                    st1_dir_hit_wback;
     logic                    st1_dir_hit_dirty;
     logic                    st1_dir_hit_fetch;
+    hpdcache_cl_user_t       st1_dir_hit_user;
     hpdcache_way_vector_t    st1_dir_hit_way;
     hpdcache_way_t           st1_dir_hit_way_index;
     hpdcache_tag_t           st1_dir_hit_tag;
@@ -446,6 +451,8 @@ import hpdcache_pkg::*;
                                                          : core_req_i.addr_tag;
     assign st0_req.wdata        = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.wdata
                                                          : core_req_i.wdata;
+    assign st0_req.wuser        = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.wuser
+                                                         : core_req_i.wuser;
     assign st0_req.op           = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.op
                                                          : core_req_i.op;
     assign st0_req.be           = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.be
@@ -503,6 +510,7 @@ import hpdcache_pkg::*;
 
     assign st1_req.addr_offset     = st1_req_q.addr_offset;
     assign st1_req.addr_tag        = st1_req_rtab_q ? st1_req_q.addr_tag : st1_req_tag;
+    assign st1_req.wuser           = st1_req_q.wuser;
     assign st1_req.wdata           = st1_req_q.wdata;
     assign st1_req.op              = st1_req_q.op;
     assign st1_req.be              = st1_req_q.be;
@@ -546,7 +554,8 @@ import hpdcache_pkg::*;
     //  Cache controller protocol engine
     //  {{{
     hpdcache_ctrl_pe #(
-        .HPDcacheCfg(HPDcacheCfg)
+        .HPDcacheCfg(HPDcacheCfg),
+        .hpdcache_cl_user_t(hpdcache_cl_user_t)
     ) hpdcache_ctrl_pe_i(
         .core_req_valid_i,
         .core_req_ready_o,
@@ -586,6 +595,7 @@ import hpdcache_pkg::*;
         .st1_dir_hit_wback_i                (st1_dir_hit_wback),
         .st1_dir_hit_dirty_i                (st1_dir_hit_dirty),
         .st1_dir_hit_fetch_i                (st1_dir_hit_fetch),
+        .st1_dir_hit_user_i                 (st1_dir_hit_user),
         .st1_dir_victim_unavailable_i       (st1_dir_victim_unavailable),
         .st1_dir_victim_valid_i             (st1_dir_victim_valid),
         .st1_dir_victim_wback_i             (st1_dir_victim_wback),
@@ -615,11 +625,13 @@ import hpdcache_pkg::*;
         .st2_dir_updt_wback_i               (st2_dir_updt_wback_q),
         .st2_dir_updt_dirty_i               (st2_dir_updt_dirty_q),
         .st2_dir_updt_fetch_i               (st2_dir_updt_fetch_q),
+        .st2_dir_updt_user_i                (st2_dir_updt_user_q),
         .st2_dir_updt_o                     (st2_dir_updt_d),
         .st2_dir_updt_valid_o               (st2_dir_updt_valid_d),
         .st2_dir_updt_wback_o               (st2_dir_updt_wback_d),
         .st2_dir_updt_dirty_o               (st2_dir_updt_dirty_d),
         .st2_dir_updt_fetch_o               (st2_dir_updt_fetch_d),
+        .st2_dir_updt_user_o                (st2_dir_updt_user_d),
 
         .req_cachedata_read_o               (data_req_read),
 
@@ -918,6 +930,7 @@ import hpdcache_pkg::*;
         .dir_hit_wback_o               (st1_dir_hit_wback),
         .dir_hit_dirty_o               (st1_dir_hit_dirty),
         .dir_hit_fetch_o               (st1_dir_hit_fetch),
+        .dir_hit_user_o                (st1_dir_hit_user),
 
         .dir_updt_i                    (st2_dir_updt_q),
         .dir_updt_set_i                (st2_dir_updt_set_q),
@@ -1024,6 +1037,7 @@ import hpdcache_pkg::*;
     //  Write buffer outputs
     //  {{{
     assign wbuf_write_addr_o = st1_req_addr;
+    assign wbuf_write_user_o = st1_req.wuser;
     assign wbuf_write_data_o = st1_req.wdata;
     assign wbuf_write_be_o   = st1_req.be;
     assign wbuf_flush_all_o  = cmo_wbuf_flush_all_i | uc_wbuf_flush_all_i | wbuf_flush_i;
@@ -1268,6 +1282,11 @@ import hpdcache_pkg::*;
                                 (cmo_core_rsp_valid_i    ? cmo_core_rsp_i.rdata :
                                 (uc_core_rsp_valid_i     ? uc_core_rsp_i.rdata :
                                                            data_req_read_data)));
+    //assign core_rsp_o.ruser   = 'b1; // XXX forcing valid user bit for dev purposes, REMOVE
+    assign core_rsp_o.ruser   = (refill_core_rsp_valid_i ? refill_core_rsp_i.ruser :
+                                (cmo_core_rsp_valid_i    ? cmo_core_rsp_i.ruser :
+                                (uc_core_rsp_valid_i     ? uc_core_rsp_i.ruser :
+                                                           st1_dir_hit_user)));
     assign core_rsp_o.sid     = (refill_core_rsp_valid_i ? refill_core_rsp_i.sid :
                                 (cmo_core_rsp_valid_i    ? cmo_core_rsp_i.sid :
                                 (uc_core_rsp_valid_i     ? uc_core_rsp_i.sid :
