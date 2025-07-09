@@ -13,6 +13,8 @@ sources:
   - rtl/src/hpdcache_pkg.sv
   - rtl/src/utils/hpdcache_mem_req_read_arbiter.sv
   - rtl/src/utils/hpdcache_mem_req_write_arbiter.sv
+  - rtl/src/utils/hpdcache_mem_to_axi_read.sv
+  - rtl/src/utils/hpdcache_mem_to_axi_write.sv
   - rtl/src/common/hpdcache_demux.sv
   - rtl/src/common/hpdcache_lfsr.sv
   - rtl/src/common/hpdcache_sync_buffer.sv
@@ -33,6 +35,10 @@ sources:
   - rtl/src/common/hpdcache_data_downsize.sv
   - rtl/src/common/hpdcache_data_resize.sv
   - rtl/src/common/hpdcache_data_upsize.sv
+  - rtl/src/common/hpdcache_data_resize.sv
+  - rtl/src/common/macros/behav/hpdcache_sram_1rw.sv
+  - rtl/src/common/macros/behav/hpdcache_sram_wmask_1rw.sv
+  - rtl/src/common/macros/behav/hpdcache_sram_wbyteenable_1rw.sv
   - rtl/src/hwpf_stride/hwpf_stride_pkg.sv
   - rtl/src/hwpf_stride/hwpf_stride.sv
   - rtl/src/hwpf_stride/hwpf_stride_arb.sv
@@ -46,6 +52,7 @@ sources:
   - rtl/src/hpdcache_flush.sv
   - rtl/src/hpdcache_memctrl.sv
   - rtl/src/hpdcache_cbuf.sv
+  - rtl/src/hpdcache_flush.sv
   - rtl/src/hpdcache_miss_handler.sv
   - rtl/src/hpdcache_mshr.sv
   - rtl/src/hpdcache_rtab.sv
