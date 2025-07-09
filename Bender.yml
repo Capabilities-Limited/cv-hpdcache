@@ -29,6 +29,7 @@ sources:
   - rtl/src/common/hpdcache_regbank_wmask_1rw.sv
   - rtl/src/common/hpdcache_data_downsize.sv
   - rtl/src/common/hpdcache_data_upsize.sv
+  - rtl/src/common/macros/behav/hpdcache_sram_wmask_1rw.sv
   - rtl/src/hwpf_stride/hwpf_stride_pkg.sv
   - rtl/src/hwpf_stride/hwpf_stride.sv
   - rtl/src/hwpf_stride/hwpf_stride_arb.sv
