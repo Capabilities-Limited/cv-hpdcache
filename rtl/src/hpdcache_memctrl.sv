@@ -393,7 +393,8 @@ import hpdcache_pkg::*;
                 if (HPDcacheCfg.u.dataRamByteEnable) begin : gen_data_sram_wbyteenable
                     hpdcache_sram_wbyteenable #(
                         .DATA_SIZE   (HPDCACHE_DATA_RAM_WIDTH),
-                        .ADDR_SIZE   (HPDCACHE_DATA_RAM_ADDR_WIDTH)
+                        .ADDR_SIZE   (HPDCACHE_DATA_RAM_ADDR_WIDTH),
+                        .ATOM_SIZE   ((HPDcacheCfg.u.wordWidth+8-1)/8)
                     ) data_sram (
                         .clk         (clk_i),
                         .rst_n       (rst_ni),
