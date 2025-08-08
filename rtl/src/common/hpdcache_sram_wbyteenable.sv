@@ -16,22 +16,23 @@ module hpdcache_sram_wbyteenable
     parameter int unsigned DATA_SIZE = 0,
     parameter int unsigned DEPTH = 2**ADDR_SIZE,
     parameter int unsigned NDATA = 1,
+    parameter int unsigned ATOM_SIZE = DATA_SIZE >= 8 ? 8 : DATA_SIZE,
     parameter bit          ECC_EN = 1'b0
 )
 (
-    input  logic                                    clk,
-    input  logic                                    rst_n,
-    input  logic                                    cs,
-    input  logic                                    we,
-    input  logic [ADDR_SIZE-1:0]                    addr,
-    input  logic [NDATA-1:0][DATA_SIZE-1:0]         wdata,
-    input  logic [NDATA-1:0][(DATA_SIZE+8-1)/8-1:0] wbyteenable,
-    output logic [NDATA-1:0][DATA_SIZE-1:0]         rdata,
+    input  logic                                                    clk,
+    input  logic                                                    rst_n,
+    input  logic                                                    cs,
+    input  logic                                                    we,
+    input  logic [ADDR_SIZE-1:0]                                    addr,
+    input  logic [NDATA-1:0][DATA_SIZE-1:0]                         wdata,
+    input  logic [NDATA-1:0][(DATA_SIZE+ATOM_SIZE-1)/ATOM_SIZE-1:0] wbyteenable,
+    output logic [NDATA-1:0][DATA_SIZE-1:0]                         rdata,
 
-    input  logic                                    err_inj_i,
-    input  logic [NDATA-1:0][DATA_SIZE-1:0]         err_inj_msk_i,
-    output logic [NDATA-1:0]                        err_cor_o,
-    output logic [NDATA-1:0]                        err_unc_o
+    input  logic                                                    err_inj_i,
+    input  logic [NDATA-1:0][DATA_SIZE-1:0]                         err_inj_msk_i,
+    output logic [NDATA-1:0]                                        err_cor_o,
+    output logic [NDATA-1:0]                                        err_unc_o
 );
 
     if (ECC_EN) begin : gen_sram_ecc
@@ -39,6 +40,7 @@ module hpdcache_sram_wbyteenable
             .ADDR_SIZE(ADDR_SIZE),
             .DATA_SIZE(DATA_SIZE),
             .DEPTH(DEPTH),
+            .ATOM_SIZE(ATOM_SIZE),
             .NDATA(NDATA)
         ) ram_i(
             .clk,

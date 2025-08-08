@@ -524,6 +524,7 @@ import hpdcache_pkg::*;
                 hpdcache_sram_wbyteenable #(
                     .ADDR_SIZE (HPDCACHE_DATA_RAM_ADDR_WIDTH),
                     .DATA_SIZE (HPDcacheCfg.u.wordWidth),
+                    .ATOM_SIZE ((HPDcacheCfg.u.wordWidth+8-1)/8),
                     .NDATA     (HPDcacheCfg.u.dataWaysPerRamWord),
                     .ECC_EN    (HPDcacheCfg.u.eccEn)
                 ) data_sram(
