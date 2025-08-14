@@ -497,7 +497,7 @@ package hpdcache_pkg;
         ret.u = p;
 
         ret.clWidth = p.clWords * p.wordWidth;
-        ret.clOffsetWidth = $clog2(ret.clWidth / 8);
+        ret.clOffsetWidth = $clog2(ret.clWidth / ((p.wordWidth < 8) ? p.wordWidth : 8));
         ret.clWordIdxWidth = $clog2(p.clWords);
         ret.wordByteIdxWidth = $clog2((p.wordWidth + 8 - 1) / 8);
         ret.wayIndexWidth = (p.ways > 1) ? $clog2(p.ways) : 1;
@@ -519,7 +519,7 @@ package hpdcache_pkg;
         ret.wbufDataPtrWidth = $clog2(p.wbufDataEntries);
 
         ret.accessWidth = p.accessWords * p.wordWidth;
-        ret.accessBytes = ret.accessWidth/8;
+        ret.accessBytes = ret.accessWidth/((p.wordWidth < 8) ? p.wordWidth : 8);
 
         ret.wordsPerMemFlit = hpdcache_ceil_div(p.memDataWidth, p.wordWidth);
 
