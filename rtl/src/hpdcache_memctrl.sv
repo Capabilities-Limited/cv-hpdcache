@@ -668,7 +668,7 @@ import hpdcache_pkg::*;
         //  demux request BE
         hpdcache_demux #(
             .NOUTPUT     (HPDCACHE_DATA_REQ_RATIO),
-            .DATA_WIDTH  ((HPDcacheCfg.reqDataWidth+8-1)/8),
+            .DATA_WIDTH  (HPDcacheCfg.reqDataWidth/((HPDcacheCfg.u.wordWidth > 8) ? 8 : HPDcacheCfg.u.wordWidth)),
             .ONE_HOT_SEL (1'b0)
         ) data_req_write_be_demux_i (
             .data_i      (data_req_write_be_i),
