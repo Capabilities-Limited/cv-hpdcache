@@ -278,7 +278,8 @@ import hpdcache_pkg::*;
         endcase
     end
 
-    localparam hpdcache_uint REFILL_REQ_SIZE = $clog2(HPDcacheCfg.u.memDataWidth / 8);
+    localparam int atomSz = (HPDcacheCfg.u.wordWidth < 8) ? HPDcacheCfg.u.wordWidth : 8;
+    localparam hpdcache_uint REFILL_REQ_SIZE = $clog2(HPDcacheCfg.u.memDataWidth / atomSz);
     localparam hpdcache_uint REFILL_REQ_LEN = HPDcacheCfg.clWidth / HPDcacheCfg.u.memDataWidth;
 
     assign mem_req_o.mem_req_addr = {mshr_alloc_nline_q, {HPDcacheCfg.clOffsetWidth{1'b0}} };
@@ -656,14 +657,14 @@ import hpdcache_pkg::*;
     //  Multiplexing has a byte granularity
     //  REFILL_REQ_RATIO is always greater or equal to 1
     //  Use `accessBytes` bytes long signals
-    logic [HPDcacheCfg.accessBytes-1:0][7:0] clean_data;
+    logic [HPDcacheCfg.accessBytes-1:0][atomSz-1:0] clean_data;
 
     assign clean_data = refill_fifo_resp_data_rdata;
 
     if (HPDcacheCfg.u.wbEn) begin : gen_refill_dirty_data
         logic [HPDcacheCfg.accessBytes-1:0]      dirty_be;
-        logic [HPDcacheCfg.accessBytes-1:0][7:0] dirty_data;
-        logic [HPDcacheCfg.accessBytes-1:0][7:0] refill_data;
+        logic [HPDcacheCfg.accessBytes-1:0][atomSz-1:0] dirty_data;
+        logic [HPDcacheCfg.accessBytes-1:0][atomSz-1:0] refill_data;
 
         assign dirty_be   = {REFILL_REQ_RATIO{refill_dirty_be}};
         assign dirty_data = {REFILL_REQ_RATIO{refill_dirty_wdata}};
