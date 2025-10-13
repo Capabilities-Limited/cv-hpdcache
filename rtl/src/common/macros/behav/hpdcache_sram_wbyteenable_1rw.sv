@@ -33,6 +33,9 @@ module hpdcache_sram_wbyteenable_1rw
      */
     typedef logic [NDATA-1:0][DATA_SIZE-1:0] mem_t [DEPTH];
     mem_t mem;
+    logic [ADDR_SIZE-1:0] addr_reg;
+
+    assign rdata = mem[addr_reg];
 
     /*
      *  Process to update or read the memory array
@@ -47,7 +50,7 @@ module hpdcache_sram_wbyteenable_1rw
                     end
                 end
             end else begin
-                rdata <= mem[addr];
+                addr_reg <= addr;
             end
         end
     end
