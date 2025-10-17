@@ -317,7 +317,7 @@ import hpdcache_pkg::*;
     logic                    st2_dir_updt_wback_q, st2_dir_updt_wback_d;
     logic                    st2_dir_updt_dirty_q, st2_dir_updt_dirty_d;
     logic                    st2_dir_updt_fetch_q, st2_dir_updt_fetch_d;
-    hpdcache_cl_user_t       st2_dir_updt_user_q, st2_dir_updt_user_d;
+    hpdcache_cl_user_t       st2_dir_updt_user_q, st2_dir_user, st2_dir_updt_user_d;
     //  }}}
 
     //  Definition of internal signals
@@ -356,6 +356,7 @@ import hpdcache_pkg::*;
     hpdcache_word_t          st1_req_word;
     hpdcache_nline_t         st1_req_nline;
     hpdcache_req_addr_t      st1_req_addr;
+    hpdcache_access_user_t   st1_req_user;
     logic                    st1_victim_sel;
     logic                    st1_req_updt_sel_victim;
     logic                    st1_req_is_uncacheable;
@@ -638,7 +639,7 @@ import hpdcache_pkg::*;
         .st2_dir_updt_wback_o               (st2_dir_updt_wback_d),
         .st2_dir_updt_dirty_o               (st2_dir_updt_dirty_d),
         .st2_dir_updt_fetch_o               (st2_dir_updt_fetch_d),
-        .st2_dir_updt_user_o                (st2_dir_updt_user_d),
+        .st2_dir_updt_user_o                (st2_dir_user),
 
         .req_cachedata_read_o               (data_req_read),
 
@@ -844,6 +845,12 @@ import hpdcache_pkg::*;
     end
     //  }}}
 
+    always_comb
+    begin: st2_dir_updt_d_comb
+        st2_dir_updt_user_d = st2_dir_user;
+        st2_dir_updt_user_d[st1_req_word] = st1_req_user;
+    end
+
     //  Pipeline stage 2 registers
     //  {{{
     always_ff @(posedge clk_i)
@@ -903,6 +910,7 @@ import hpdcache_pkg::*;
                                               HPDcacheCfg.clWordIdxWidth];
     assign st1_req_addr = {st1_req.addr_tag, st1_req.addr_offset};
     assign st1_req_nline = st1_req_addr[HPDcacheCfg.clOffsetWidth +: HPDcacheCfg.nlineWidth];
+    assign st1_req_user = st1_req.wuser;
 
     assign st1_victim_nline = {st1_dir_victim_tag, st1_req_set};
 
@@ -1310,7 +1318,6 @@ import hpdcache_pkg::*;
                                 (cmo_core_rsp_valid_i    ? cmo_core_rsp_i.rdata :
                                 (uc_core_rsp_valid_i     ? uc_core_rsp_i.rdata :
                                                            data_req_read_data)));
-    //assign core_rsp_o.ruser   = 'b1; // XXX forcing valid user bit for dev purposes, REMOVE
     assign core_rsp_o.ruser   = (refill_core_rsp_valid_i ? refill_core_rsp_i.ruser :
                                 (cmo_core_rsp_valid_i    ? cmo_core_rsp_i.ruser :
                                 (uc_core_rsp_valid_i     ? uc_core_rsp_i.ruser :

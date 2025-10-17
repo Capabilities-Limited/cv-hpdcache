@@ -1024,6 +1024,14 @@ import hpdcache_pkg::*;
 
                                 //  The store can be performed in the write buffer and in the cache
                                 else begin
+                                    st2_dir_updt_o       = 1'b1;
+                                    st2_dir_updt_valid_o = 1'b1;
+                                    st2_dir_updt_wback_o = 1'b0;
+                                    st2_dir_updt_dirty_o = 1'b0;
+                                    st2_dir_updt_fetch_o = 1'b0;
+                                    //st2_dir_updt_user_o = st2_dir_updt_user_i;
+                                    st1_nop = 1'b1;
+
                                     //  If the request comes from the replay table, free the
                                     //  corresponding RTAB entry
                                     st1_rtab_commit_o = st1_req_rtab_i;
