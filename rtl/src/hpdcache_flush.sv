@@ -380,6 +380,7 @@ import hpdcache_pkg::*;
     //
     assign mem_req_write_data_o = '{
         mem_req_w_data: flush_mem_req_rdata,
+        mem_req_w_user: '0,
         mem_req_w_be: '1,
         mem_req_w_last: flush_mem_req_rlast
     };
