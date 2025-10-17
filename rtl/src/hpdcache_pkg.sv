@@ -503,7 +503,7 @@ package hpdcache_pkg;
         ret.reqWordIdxWidth = $clog2(p.reqWords);
         ret.reqOffsetWidth = p.paWidth - ret.tagWidth;
         ret.reqUserWidth = p.reqUserWidth;
-        ret.clReqUsers = p.clWords / p.reqWords;
+        ret.clReqUsers = p.clWords * p.reqUserWidth;
         ret.reqDataWidth = p.reqWords * p.wordWidth;
         ret.reqDataBytes = ret.reqDataWidth/8;
 
