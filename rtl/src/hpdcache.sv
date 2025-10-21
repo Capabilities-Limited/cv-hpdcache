@@ -233,6 +233,7 @@ import hpdcache_pkg::*;
     hpdcache_req_sid_t     miss_mshr_alloc_sid;
     hpdcache_word_t        miss_mshr_alloc_word;
     hpdcache_req_data_t    miss_mshr_alloc_wdata;
+    hpdcache_req_data_t    miss_mshr_alloc_wuser;
     hpdcache_req_be_t      miss_mshr_alloc_be;
     hpdcache_way_vector_t  miss_mshr_alloc_victim_way;
     logic                  miss_mshr_alloc_need_rsp;
@@ -496,6 +497,7 @@ import hpdcache_pkg::*;
         .hpdcache_req_tid_t                 (hpdcache_req_tid_t),
         .hpdcache_req_sid_t                 (hpdcache_req_sid_t),
         .hpdcache_req_data_t                (hpdcache_req_data_t),
+        .hpdcache_req_user_t                (hpdcache_req_user_t),
         .hpdcache_req_be_t                  (hpdcache_req_be_t),
         .hpdcache_req_t                     (hpdcache_req_t),
         .hpdcache_rsp_t                     (hpdcache_rsp_t)
@@ -531,6 +533,7 @@ import hpdcache_pkg::*;
         .st2_mshr_alloc_sid_o               (miss_mshr_alloc_sid),
         .st2_mshr_alloc_word_o              (miss_mshr_alloc_word),
         .st2_mshr_alloc_wdata_o             (miss_mshr_alloc_wdata),
+        .st2_mshr_alloc_wuser_o             (miss_mshr_alloc_wuser),
         .st2_mshr_alloc_be_o                (miss_mshr_alloc_be),
         .st2_mshr_alloc_victim_way_o        (miss_mshr_alloc_victim_way),
         .st2_mshr_alloc_need_rsp_o          (miss_mshr_alloc_need_rsp),
@@ -781,6 +784,7 @@ import hpdcache_pkg::*;
         .hpdcache_refill_data_t             (hpdcache_access_data_t),
         .hpdcache_refill_user_t             (hpdcache_access_user_t),
         .hpdcache_req_data_t                (hpdcache_req_data_t),
+        .hpdcache_req_user_t                (hpdcache_req_user_t),
         .hpdcache_req_be_t                  (hpdcache_req_be_t),
         .hpdcache_req_offset_t              (hpdcache_req_offset_t),
         .hpdcache_req_sid_t                 (hpdcache_req_sid_t),
@@ -819,6 +823,7 @@ import hpdcache_pkg::*;
         .mshr_alloc_wback_i                 (miss_mshr_alloc_wback),
         .mshr_alloc_dirty_i                 (miss_mshr_alloc_dirty),
         .mshr_alloc_wdata_i                 (miss_mshr_alloc_wdata),
+        .mshr_alloc_wuser_i                 (miss_mshr_alloc_wuser),
         .mshr_alloc_be_i                    (miss_mshr_alloc_be),
 
         .refill_req_ready_i                 (refill_req_ready),

@@ -23,6 +23,7 @@ import hpdcache_pkg::*;
 #(
     parameter hpdcache_cfg_t HPDcacheCfg = '0,
     parameter type hpdcache_req_data_t   = logic,
+    parameter type hpdcache_req_user_t   = logic,
     parameter type hpdcache_req_be_t     = logic,
     parameter type cbuf_id_t             = logic
 )
@@ -35,18 +36,21 @@ import hpdcache_pkg::*;
     input  logic               rst_ni,
     input  logic               alloc_i,
     input  hpdcache_req_data_t alloc_wdata_i,
+    input  hpdcache_req_user_t alloc_wuser_i,
     input  hpdcache_req_be_t   alloc_be_i,
     output cbuf_id_t           alloc_id_o,
     output logic               alloc_full_o,
     input  logic               ack_i,
     input  cbuf_id_t           ack_id_i,
     output hpdcache_req_data_t ack_wdata_o,
+    output hpdcache_req_user_t ack_wuser_o,
     output hpdcache_req_be_t   ack_be_o
 );
     //  }}}
 
     typedef struct packed {
         hpdcache_req_data_t wdata;
+        hpdcache_req_user_t wuser;
         hpdcache_req_be_t   be;
     } cbuf_entry_t;
 
@@ -56,6 +60,7 @@ import hpdcache_pkg::*;
     assign alloc_full_o = &valid_q;
 
     assign ack_wdata_o = entries_q[ack_id_i].wdata;
+    assign ack_wuser_o = entries_q[ack_id_i].wuser;
     assign ack_be_o    = entries_q[ack_id_i].be;
 
     always_comb begin
@@ -69,6 +74,7 @@ import hpdcache_pkg::*;
         if (alloc_i) begin
             valid_d  [alloc_id_o]       = 1'b1;
             entries_d[alloc_id_o].wdata = alloc_wdata_i;
+            entries_d[alloc_id_o].wuser = alloc_wuser_i;
             entries_d[alloc_id_o].be    = alloc_be_i;
         end
     end
