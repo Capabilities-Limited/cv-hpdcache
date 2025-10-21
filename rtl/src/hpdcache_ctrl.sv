@@ -46,6 +46,7 @@ import hpdcache_pkg::*;
     parameter type hpdcache_req_tid_t = logic,
     parameter type hpdcache_req_sid_t = logic,
     parameter type hpdcache_req_data_t = logic,
+    parameter type hpdcache_req_user_t = logic,
     parameter type hpdcache_req_be_t = logic,
 
     parameter type hpdcache_req_t = logic,
@@ -92,6 +93,7 @@ import hpdcache_pkg::*;
     output hpdcache_req_sid_t     st2_mshr_alloc_sid_o,
     output hpdcache_word_t        st2_mshr_alloc_word_o,
     output hpdcache_req_data_t    st2_mshr_alloc_wdata_o,
+    output hpdcache_req_user_t    st2_mshr_alloc_wuser_o,
     output hpdcache_req_be_t      st2_mshr_alloc_be_o,
     output hpdcache_way_vector_t  st2_mshr_alloc_victim_way_o,
     output logic                  st2_mshr_alloc_need_rsp_o,
@@ -316,6 +318,7 @@ import hpdcache_pkg::*;
     hpdcache_req_sid_t       st2_mshr_alloc_sid_q;
     hpdcache_req_tid_t       st2_mshr_alloc_tid_q;
     hpdcache_req_data_t      st2_mshr_alloc_wdata_q;
+    hpdcache_req_user_t      st2_mshr_alloc_wuser_q;
     hpdcache_req_be_t        st2_mshr_alloc_be_q;
     hpdcache_way_vector_t    st2_mshr_alloc_victim_way_q;
 
@@ -915,6 +918,7 @@ import hpdcache_pkg::*;
             st2_mshr_alloc_sid_q         <= st1_req.req.sid;
             st2_mshr_alloc_tid_q         <= st1_req.req.tid;
             st2_mshr_alloc_wdata_q       <= st1_req.req.wdata;
+            st2_mshr_alloc_wuser_q       <= st1_req.req.wuser;
             st2_mshr_alloc_be_q          <= st1_req.req.be;
             st2_mshr_alloc_is_prefetch_q <= st1_req_is_cmo_prefetch;
             st2_mshr_alloc_wback_q       <= st2_mshr_alloc_wback_d;
@@ -1162,6 +1166,7 @@ import hpdcache_pkg::*;
     assign st2_mshr_alloc_word_o        = st2_mshr_alloc_addr_q[HPDcacheCfg.wordByteIdxWidth +:
                                                                 HPDcacheCfg.clWordIdxWidth];
     assign st2_mshr_alloc_wdata_o       = st2_mshr_alloc_wdata_q;
+    assign st2_mshr_alloc_wuser_o       = st2_mshr_alloc_wuser_q;
     assign st2_mshr_alloc_be_o          = st2_mshr_alloc_be_q;
     assign st2_mshr_alloc_victim_way_o  = st2_mshr_alloc_victim_way_q;
     assign st2_mshr_alloc_need_rsp_o    = st2_mshr_alloc_need_rsp_q;
