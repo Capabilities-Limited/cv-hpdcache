@@ -46,7 +46,7 @@ import hpdcache_pkg::*;
     parameter type hpdcache_refill_user_t = logic,
 
     parameter type hpdcache_req_data_t = logic,
-    parameter type hpdcache_cl_user_t = logic,
+    parameter type hpdcache_req_user_t = logic,
     parameter type hpdcache_req_be_t = logic,
     parameter type hpdcache_req_offset_t = logic,
     parameter type hpdcache_req_sid_t = logic,
@@ -104,6 +104,7 @@ import hpdcache_pkg::*;
     input  logic                  mshr_alloc_wback_i,
     input  logic                  mshr_alloc_dirty_i,
     input  hpdcache_req_data_t    mshr_alloc_wdata_i,
+    input  hpdcache_req_user_t    mshr_alloc_wuser_i,
     input  hpdcache_req_be_t      mshr_alloc_be_i,
 
     //          REFILL MISS / Invalidation interface
@@ -198,12 +199,14 @@ import hpdcache_pkg::*;
     logic                    refill_wback_q;
     logic                    refill_dirty_q;
     hpdcache_req_data_t      refill_dirty_wdata_q;
+    hpdcache_req_user_t      refill_dirty_wuser_q;
     hpdcache_req_be_t        refill_dirty_be_q;
     hpdcache_word_t          refill_core_rsp_word_q;
     hpdcache_way_t           refill_way;
     logic                    refill_dirty;
     logic                    refill_dirty_valid;
     hpdcache_req_data_t      refill_dirty_wdata;
+    hpdcache_req_user_t      refill_dirty_wuser;
     hpdcache_req_be_t        refill_dirty_be;
 
     mem_resp_metadata_t      refill_fifo_resp_meta_wdata, refill_fifo_resp_meta_rdata;
@@ -217,7 +220,7 @@ import hpdcache_pkg::*;
 
     logic                    refill_core_rsp_valid;
     hpdcache_req_data_t      refill_core_rsp_rdata;
-    hpdcache_cl_user_t       refill_core_rsp_ruser;
+    hpdcache_req_user_t      refill_core_rsp_ruser;
     hpdcache_req_sid_t       refill_core_rsp_sid;
     hpdcache_req_tid_t       refill_core_rsp_tid;
     logic                    refill_core_rsp_error;
@@ -246,6 +249,7 @@ import hpdcache_pkg::*;
     logic                    mshr_ack_dirty;
     cbuf_id_t                mshr_ack_cbuf_id;
     hpdcache_req_data_t      mshr_ack_wdata;
+    hpdcache_req_data_t      mshr_ack_wuser;
     hpdcache_req_be_t        mshr_ack_be;
     logic                    mshr_empty;
     //  }}}
@@ -440,6 +444,7 @@ import hpdcache_pkg::*;
                     is_prefetch = mshr_ack_is_prefetch;
                     refill_dirty = mshr_ack_dirty;
                     refill_dirty_wdata = mshr_ack_wdata;
+                    refill_dirty_wuser = mshr_ack_wuser;
                     refill_dirty_be = mshr_ack_be;
                 end else begin
                     refill_set_o = refill_set_q;
@@ -447,6 +452,7 @@ import hpdcache_pkg::*;
                     is_prefetch = refill_is_prefetch_q;
                     refill_dirty = refill_dirty_q;
                     refill_dirty_wdata = refill_dirty_wdata_q;
+                    refill_dirty_wuser = refill_dirty_wuser_q;
                     refill_dirty_be = refill_dirty_be_q;
                 end
                 refill_write_data_o = ~refill_is_error_o;
@@ -705,6 +711,7 @@ import hpdcache_pkg::*;
 
         assign dirty_be   = {REFILL_REQ_RATIO{refill_dirty_be}};
         assign dirty_data = {REFILL_REQ_RATIO{refill_dirty_wdata}};
+        assign dirty_user = {REFILL_REQ_RATIO{refill_dirty_wuser}};
 
         //  Iterate on all `accessBytes` bytes
         for (genvar i = 0; i < HPDcacheCfg.accessBytes; i++) begin : gen_refill_mux
@@ -726,7 +733,11 @@ import hpdcache_pkg::*;
                 assign dirty_sel = refill_dirty_valid && dirty_be[i];
             end
             assign refill_data[i] = dirty_sel ? dirty_data[i] : clean_data[i];
-            assign refill_user[i] = dirty_sel ? dirty_data[i] : clean_user[i];
+            // Only assign user bits once per word.
+            if (i[HPDcacheCfg.wordByteIdxWidth-1:0] == 0) begin
+                logic [HPDcacheCfg.reqWordIdxWidth:0] j = i >> HPDcacheCfg.wordByteIdxWidth;
+                assign refill_user[j] = dirty_sel ? dirty_user[j] : clean_user[j];
+            end
         end
         assign refill_data_o = hpdcache_refill_data_t'(refill_data);
         assign refill_user_o = hpdcache_refill_user_t'(refill_user); // XXX TODO chase down refill_user
@@ -782,6 +793,7 @@ import hpdcache_pkg::*;
             refill_wback_q <= mshr_ack_wback;
             refill_dirty_q <= mshr_ack_dirty;
             refill_dirty_wdata_q <= mshr_ack_wdata;
+            refill_dirty_wuser_q <= mshr_ack_wuser;
             refill_dirty_be_q <= mshr_ack_be;
             refill_core_rsp_word_q <= mshr_ack_word;
         end
@@ -878,6 +890,7 @@ import hpdcache_pkg::*;
         hpdcache_cbuf #(
             .HPDcacheCfg         (HPDcacheCfg),
             .hpdcache_req_data_t (hpdcache_req_data_t),
+            .hpdcache_req_user_t (hpdcache_req_user_t),
             .hpdcache_req_be_t   (hpdcache_req_be_t),
             .cbuf_id_t           (cbuf_id_t)
         ) hpdcache_cbuf_i(
@@ -886,6 +899,7 @@ import hpdcache_pkg::*;
 
             .alloc_i       (cbuf_alloc),
             .alloc_wdata_i (mshr_alloc_wdata_i),
+            .alloc_wuser_i (mshr_alloc_wuser_i),
             .alloc_be_i    (mshr_alloc_be_i),
             .alloc_id_o    (mshr_alloc_cbuf_id),
             .alloc_full_o  (mshr_alloc_cbuf_full_o),
@@ -893,12 +907,14 @@ import hpdcache_pkg::*;
             .ack_i         (cbuf_ack),
             .ack_id_i      (mshr_ack_cbuf_id),
             .ack_wdata_o   (mshr_ack_wdata),
+            .ack_wuser_o   (mshr_ack_wuser),
             .ack_be_o      (mshr_ack_be)
         );
     end else begin : gen_no_wb_cbuf
         assign mshr_alloc_cbuf_id = '0;
         assign mshr_alloc_cbuf_full_o = 1'b0;
         assign mshr_ack_wdata = '0;
+        assign mshr_ack_wuser = '0;
         assign mshr_ack_be = '0;
     end
     //  }}}
