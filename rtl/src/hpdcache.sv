@@ -207,7 +207,6 @@ import hpdcache_pkg::*;
     logic                  refill_write_data;
     hpdcache_word_t        refill_word;
     hpdcache_access_data_t refill_data;
-    hpdcache_access_user_t refill_user;
     logic                  refill_core_rsp_valid;
     hpdcache_rsp_t         refill_core_rsp;
     hpdcache_nline_t       refill_nline;
@@ -553,7 +552,6 @@ import hpdcache_pkg::*;
         .refill_write_data_i                (refill_write_data),
         .refill_word_i                      (refill_word),
         .refill_data_i                      (refill_data),
-        .refill_user_i                      (refill_user),
         .refill_core_rsp_valid_i            (refill_core_rsp_valid),
         .refill_core_rsp_i                  (refill_core_rsp),
         .refill_nline_i                     (refill_nline),
@@ -837,7 +835,6 @@ import hpdcache_pkg::*;
         .refill_write_dir_o                 (refill_write_dir),
         .refill_write_data_o                (refill_write_data),
         .refill_data_o                      (refill_data),
-        .refill_user_o                      (refill_user),
         .refill_word_o                      (refill_word),
         .refill_nline_o                     (refill_nline),
         .refill_updt_rtab_o                 (refill_updt_rtab),
