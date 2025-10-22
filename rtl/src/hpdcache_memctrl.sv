@@ -535,7 +535,7 @@ import hpdcache_pkg::*;
                         wback: dir_updt_wback_i,
                         dirty: dir_updt_dirty_i,
                         fetch: dir_updt_fetch_i,
-                        user: dir_updt_user_i,
+                        user : dir_updt_user_i,
                         tag  : dir_updt_tag_i
                     };
                 end
