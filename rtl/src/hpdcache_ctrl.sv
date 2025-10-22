@@ -114,7 +114,6 @@ import hpdcache_pkg::*;
     input  logic                  refill_write_data_i,
     input  hpdcache_word_t        refill_word_i,
     input  hpdcache_access_data_t refill_data_i,
-    input  hpdcache_access_user_t refill_user_i,
     input  logic                  refill_core_rsp_valid_i,
     input  hpdcache_rsp_t         refill_core_rsp_i,
     input  hpdcache_nline_t       refill_nline_i,
