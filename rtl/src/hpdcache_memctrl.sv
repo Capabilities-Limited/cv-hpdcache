@@ -565,7 +565,7 @@ import hpdcache_pkg::*;
                         wback: dir_cmo_updt_wback_i,
                         dirty: dir_cmo_updt_dirty_i,
                         fetch: dir_cmo_updt_fetch_i,
-                        user: dir_cmo_updt_user_i,
+                        user : dir_cmo_updt_user_i,
                         tag  : dir_cmo_updt_tag_i
                     };
                 end
@@ -682,7 +682,7 @@ import hpdcache_pkg::*;
     assign dir_hit_fetch_o = |(dir_hit_way_o & dir_fetch);
     hpdcache_mux #(
         .NINPUT      (HPDcacheCfg.u.ways),
-        .DATA_WIDTH  (HPDcacheCfg.reqUserWidth),
+        .DATA_WIDTH  (HPDcacheCfg.clReqUsers),
         .ONE_HOT_SEL (1'b1)
     ) hit_user_mux_i(
         .data_i      (dir_user),

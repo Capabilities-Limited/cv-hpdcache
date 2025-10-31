@@ -778,6 +778,7 @@ import hpdcache_pkg::*;
         .hpdcache_set_t                     (hpdcache_set_t),
         .hpdcache_tag_t                     (hpdcache_tag_t),
         .hpdcache_word_t                    (hpdcache_word_t),
+        .hpdcache_cl_user_t                 (hpdcache_cl_user_t),
         .hpdcache_way_vector_t              (hpdcache_way_vector_t),
         .hpdcache_way_t                     (hpdcache_way_t),
         .hpdcache_dir_entry_t               (hpdcache_dir_entry_t),
