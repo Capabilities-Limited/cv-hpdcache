@@ -36,6 +36,7 @@ import hpdcache_pkg::*;
     parameter type hpdcache_set_t = logic,
     parameter type hpdcache_tag_t = logic,
     parameter type hpdcache_word_t = logic,
+    parameter type hpdcache_cl_user_t = logic,
 
     parameter type hpdcache_way_vector_t = logic,
     parameter type hpdcache_way_t = logic,
@@ -189,7 +190,7 @@ import hpdcache_pkg::*;
     refill_fsm_e             refill_fsm_q, refill_fsm_d;
     hpdcache_set_t           refill_set_q;
     hpdcache_tag_t           refill_tag_q;
-    hpdcache_refill_user_t   refill_user_q;
+    hpdcache_cl_user_t       refill_cl_user_q, refill_cl_user_d;
     hpdcache_way_t           refill_way_q;
     hpdcache_req_sid_t       refill_sid_q;
     hpdcache_req_tid_t       refill_tid_q;
@@ -208,6 +209,7 @@ import hpdcache_pkg::*;
     hpdcache_req_data_t      refill_dirty_wdata;
     hpdcache_req_user_t      refill_dirty_wuser;
     hpdcache_req_be_t        refill_dirty_be;
+    hpdcache_refill_user_t   refill_user;
 
     mem_resp_metadata_t      refill_fifo_resp_meta_wdata, refill_fifo_resp_meta_rdata;
     logic                    refill_fifo_resp_meta_w, refill_fifo_resp_meta_wok;
@@ -578,7 +580,7 @@ import hpdcache_pkg::*;
         dirty   : ~refill_is_error_o & refill_dirty_q,
         fetch   : 1'b0,
         tag     : refill_tag_q,
-        user    : refill_user_q,
+        user    : refill_cl_user_d,
         default :'0
     };
 
@@ -699,8 +701,6 @@ import hpdcache_pkg::*;
     //  Use `accessBytes` bytes long signals
     logic [HPDcacheCfg.accessBytes-1:0][7:0] clean_data;
     hpdcache_refill_user_t clean_user;
-    hpdcache_refill_user_t refill_user;
-
     assign clean_data = refill_fifo_resp_data_rdata;
     assign clean_user = refill_fifo_resp_data_ruser;
 
@@ -771,6 +771,14 @@ import hpdcache_pkg::*;
         end
     end
 
+    always_comb
+    begin : refill_cl_user_comb
+        refill_cl_user_d = refill_cl_user_q;
+        if (refill_fsm_q == REFILL_WRITE) begin
+            refill_cl_user_d[refill_cnt_q] = refill_user;
+        end
+    end
+
     always_ff @(posedge clk_i or negedge rst_ni)
     begin : miss_resp_fsm_ff
         if (!rst_ni) begin
@@ -786,7 +794,6 @@ import hpdcache_pkg::*;
             refill_set_q <= mshr_ack_cache_set;
             refill_way_q <= mshr_ack_cache_way;
             refill_tag_q <= mshr_ack_cache_tag;
-            refill_user_q <= refill_user;
             refill_sid_q <= mshr_ack_src_id;
             refill_tid_q <= mshr_ack_req_id;
             refill_need_rsp_q <= mshr_ack_need_rsp;
@@ -798,6 +805,7 @@ import hpdcache_pkg::*;
             refill_dirty_be_q <= mshr_ack_be;
             refill_core_rsp_word_q <= mshr_ack_word;
         end
+        refill_cl_user_q <= refill_cl_user_d;
         refill_cnt_q <= refill_cnt_d;
     end
     //  }}}
