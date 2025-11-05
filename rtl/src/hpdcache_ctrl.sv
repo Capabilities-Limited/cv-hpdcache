@@ -1325,7 +1325,7 @@ import hpdcache_pkg::*;
     assign core_rsp_o.ruser   = (refill_core_rsp_valid_i ? refill_core_rsp_i.ruser :
                                 (cmo_core_rsp_valid_i    ? cmo_core_rsp_i.ruser :
                                 (uc_core_rsp_valid_i     ? uc_core_rsp_i.ruser :
-                                                           st1_dir_hit_user[st2_mshr_alloc_word_o])));
+                                                           st1_dir_hit_user[st1_req_word])));
     assign core_rsp_o.sid     = (refill_core_rsp_valid_i ? refill_core_rsp_i.sid :
                                 (cmo_core_rsp_valid_i    ? cmo_core_rsp_i.sid :
                                 (uc_core_rsp_valid_i     ? uc_core_rsp_i.sid :
