@@ -736,7 +736,7 @@ import hpdcache_pkg::*;
             assign refill_data[i] = dirty_sel ? dirty_data[i] : clean_data[i];
             // Only assign user bits once per word.
             if (i[HPDcacheCfg.wordByteIdxWidth-1:0] == 0) begin
-                logic [HPDcacheCfg.reqWordIdxWidth:0] j = i >> HPDcacheCfg.wordByteIdxWidth;
+                localparam int j = i >> HPDcacheCfg.wordByteIdxWidth;
                 assign refill_user[j] = dirty_sel ? dirty_user[j] : clean_user[j];
             end
         end
