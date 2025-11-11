@@ -685,7 +685,7 @@ import hpdcache_pkg::*;
         .rst_ni,
 
         .w_i    (refill_fifo_resp_data_w),
-        .wok_o  (refill_fifo_resp_data_wok),
+        .wok_o  (/* unused */), // rely on refill_fifo_resp_data_wok
         .wdata_i(mem_resp_i.mem_resp_r_user),
         .wlast_i(mem_resp_i.mem_resp_r_last),
 
