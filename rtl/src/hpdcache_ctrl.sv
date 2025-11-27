@@ -333,7 +333,7 @@ import hpdcache_pkg::*;
     logic                    st2_dir_updt_wback_q, st2_dir_updt_wback_d;
     logic                    st2_dir_updt_dirty_q, st2_dir_updt_dirty_d;
     logic                    st2_dir_updt_fetch_q, st2_dir_updt_fetch_d;
-    hpdcache_cl_user_t       st2_dir_updt_user_q, st2_dir_user, st2_dir_updt_user_d;
+    hpdcache_cl_user_t       st2_dir_updt_user_q, st2_dir_updt_user_tmp, st2_dir_updt_user_d;
 
     hpdcache_set_t           err_set_q;
     hpdcache_way_vector_t    err_way_q, err_way_d;
@@ -423,6 +423,7 @@ import hpdcache_pkg::*;
     logic                    st1_dir_victim_valid;
     logic                    st1_dir_victim_wback;
     logic                    st1_dir_victim_dirty;
+    hpdcache_cl_user_t       st1_dir_victim_user;
     hpdcache_tag_t           st1_dir_victim_tag;
     hpdcache_way_vector_t    st1_dir_victim_way;
     hpdcache_way_vector_t    st1_dir_err_cor;
@@ -655,11 +656,13 @@ import hpdcache_pkg::*;
         .st1_dir_victim_valid_i             (st1_dir_victim_valid),
         .st1_dir_victim_wback_i             (st1_dir_victim_wback),
         .st1_dir_victim_dirty_i             (st1_dir_victim_dirty),
+        .st1_dir_victim_user_i              (st1_dir_victim_user),
         .st1_dir_err_cor_i                  (|st1_dir_err_cor),
         .st1_dir_err_unc_i                  (|st1_dir_err_unc),
         .st1_dat_err_cor_i                  (|st1_dat_err_cor),
         .st1_dat_err_unc_i                  (|st1_dat_err_unc),
         .st1_dat_err_unc_dirty_i            (|st1_dat_err_unc_dirty),
+        // XXX TODO st1_dat_err_user?
         .st1_err_o                          (st1_err_trigger),
         .err_busy_i                         (err_busy),
         .err_wait_i                         (err_wait),
@@ -695,7 +698,7 @@ import hpdcache_pkg::*;
         .st2_dir_updt_wback_o               (st2_dir_updt_wback_d),
         .st2_dir_updt_dirty_o               (st2_dir_updt_dirty_d),
         .st2_dir_updt_fetch_o               (st2_dir_updt_fetch_d),
-        .st2_dir_updt_user_o                (st2_dir_user),
+        .st2_dir_updt_user_o                (st2_dir_updt_user_tmp),
 
         .req_cachedata_read_o               (data_req_read),
         .rd_wr_conflict_i                   (rd_wr_conflict),
@@ -903,7 +906,7 @@ import hpdcache_pkg::*;
 
     always_comb
     begin: st2_dir_updt_d_comb
-        st2_dir_updt_user_d = st2_dir_user;
+        st2_dir_updt_user_d = st2_dir_updt_user_tmp;
         st2_dir_updt_user_d[st1_req_word] = st1_req_user;
     end
 
@@ -1045,6 +1048,7 @@ import hpdcache_pkg::*;
         .dir_victim_valid_o            (st1_dir_victim_valid),
         .dir_victim_wback_o            (st1_dir_victim_wback),
         .dir_victim_dirty_o            (st1_dir_victim_dirty),
+        .dir_victim_user_o             (st1_dir_victim_user),
         .dir_victim_tag_o              (st1_dir_victim_tag),
         .dir_victim_way_o              (st1_dir_victim_way),
 
