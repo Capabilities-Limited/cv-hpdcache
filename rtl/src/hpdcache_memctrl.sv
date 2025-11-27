@@ -104,6 +104,7 @@ import hpdcache_pkg::*;
     output logic                                dir_victim_valid_o,
     output logic                                dir_victim_wback_o,
     output logic                                dir_victim_dirty_o,
+    output hpdcache_cl_user_t                   dir_victim_user_o,
     output hpdcache_tag_t                       dir_victim_tag_o,
     output hpdcache_way_vector_t                dir_victim_way_o,
 
@@ -630,6 +631,7 @@ import hpdcache_pkg::*;
     assign dir_victim_valid_o = |(dir_victim_way_o & dir_valid);
     assign dir_victim_wback_o = |(dir_victim_way_o & dir_wback);
     assign dir_victim_dirty_o = |(dir_victim_way_o & dir_dirty);
+    assign dir_victim_user_o  = dir_user[dir_victim_way_o];
     hpdcache_mux #(
         .NINPUT      (HPDcacheCfg.u.ways),
         .DATA_WIDTH  (HPDcacheCfg.tagWidth),
