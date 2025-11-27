@@ -87,11 +87,12 @@ import hpdcache_pkg::*;
     input  logic                   st1_dir_hit_wback_i,
     input  logic                   st1_dir_hit_dirty_i,
     input  logic                   st1_dir_hit_fetch_i,
-    input  logic                   st1_dir_hit_user_i, // XXX not currently used
+    input  hpdcache_cl_user_t      st1_dir_hit_user_i,
     input  logic                   st1_dir_victim_unavailable_i,
     input  logic                   st1_dir_victim_valid_i,
     input  logic                   st1_dir_victim_wback_i,
     input  logic                   st1_dir_victim_dirty_i,
+    input  hpdcache_cl_user_t      st1_dir_victim_user_i,
     output logic                   st1_req_valid_o,
     output logic                   st1_req_is_error_o,
     output logic                   st1_rsp_valid_o,
@@ -536,6 +537,7 @@ import hpdcache_pkg::*;
                                 st2_dir_updt_valid_o = 1'b1;
                                 st2_dir_updt_wback_o = st1_dir_hit_wback_i;
                                 st2_dir_updt_dirty_o = 1'b0;
+                                st2_dir_updt_user_o  = st1_dir_hit_user_i;
 
                                 //  If the cacheline has been pre-allocated for a pending miss, keep
                                 //  the fetch bit set
@@ -657,6 +659,7 @@ import hpdcache_pkg::*;
                                 st2_dir_updt_wback_o = st1_dir_victim_wback_i;
                                 st2_dir_updt_dirty_o = 1'b0;
                                 st2_dir_updt_fetch_o = 1'b1;
+                                st2_dir_updt_user_o  = st1_dir_victim_user_i;
                             end
                         end
                         //  }}}
@@ -713,6 +716,7 @@ import hpdcache_pkg::*;
                                         st2_dir_updt_wback_o = 1'b0;
                                         st2_dir_updt_dirty_o = 1'b0;
                                         st2_dir_updt_fetch_o = 1'b0;
+                                        st2_dir_updt_user_o  = st1_dir_hit_user_i;
 
                                         //  Cacheline is dirty, flush its data to the memory
                                         st2_flush_alloc_o = st1_dir_hit_dirty_i;
@@ -730,6 +734,7 @@ import hpdcache_pkg::*;
                                         st2_dir_updt_wback_o = 1'b1;
                                         st2_dir_updt_dirty_o = 1'b0;
                                         st2_dir_updt_fetch_o = 1'b0;
+                                        st2_dir_updt_user_o  = st1_dir_hit_user_i;
 
                                         st1_nop = 1'b1;
                                     end
@@ -847,6 +852,7 @@ import hpdcache_pkg::*;
                                     st2_dir_updt_wback_o = st1_dir_victim_wback_i;
                                     st2_dir_updt_dirty_o = 1'b0;
                                     st2_dir_updt_fetch_o = 1'b1;
+                                    st2_dir_updt_user_o  = st1_dir_victim_user_i;
 
                                     //  Send a miss request to the memory (write-allocate)
                                     st2_mshr_alloc_o = 1'b1;
@@ -953,6 +959,7 @@ import hpdcache_pkg::*;
                                         st2_dir_updt_wback_o = 1'b1;
                                         st2_dir_updt_dirty_o = 1'b1;
                                         st2_dir_updt_fetch_o = 1'b0;
+                                        st2_dir_updt_user_o  = st1_dir_hit_user_i;
 
                                         st1_nop = 1'b1;
                                     end
@@ -1029,7 +1036,7 @@ import hpdcache_pkg::*;
                                     st2_dir_updt_wback_o = 1'b0;
                                     st2_dir_updt_dirty_o = 1'b0;
                                     st2_dir_updt_fetch_o = 1'b0;
-                                    //st2_dir_updt_user_o = st2_dir_updt_user_i;
+                                    st2_dir_updt_user_o  = st1_dir_hit_user_i;
                                     st1_nop = 1'b1;
 
                                     //  If the request comes from the replay table, free the
