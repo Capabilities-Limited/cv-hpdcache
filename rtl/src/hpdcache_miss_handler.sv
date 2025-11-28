@@ -658,8 +658,8 @@ import hpdcache_pkg::*;
     );
 
     hpdcache_data_resize #(
-        .WR_WIDTH (HPDcacheCfg.u.memDataWidth + HPDcacheCfg.u.memUserWidth),
-        .RD_WIDTH (HPDcacheCfg.accessWidth + HPDcacheCfg.u.accessUserWidth),
+        .WR_WIDTH (HPDcacheCfg.u.memDataWidth/* + HPDcacheCfg.u.memUserWidth*/),
+        .RD_WIDTH (HPDcacheCfg.accessWidth/* + HPDcacheCfg.u.accessUserWidth*/),
         .DEPTH    (HPDcacheCfg.u.refillFifoDepth)
     ) i_data_resize(
         .clk_i,
@@ -667,12 +667,12 @@ import hpdcache_pkg::*;
 
         .w_i    (refill_fifo_resp_data_w),
         .wok_o  (refill_fifo_resp_data_wok),
-        .wdata_i({mem_resp_i.mem_resp_r_data, mem_resp_i.mem_resp_r_user}),
+        .wdata_i({mem_resp_i.mem_resp_r_data/*, mem_resp_i.mem_resp_r_user*/}),
         .wlast_i(mem_resp_i.mem_resp_r_last),
 
         .r_i    (refill_fifo_resp_data_r),
         .rok_o  (/* unused */),
-        .rdata_o({refill_fifo_resp_data_rdata, refill_fifo_resp_data_ruser}),
+        .rdata_o({refill_fifo_resp_data_rdata/*, refill_fifo_resp_data_ruser*/}),
         .rlast_o(/* unused */)
     );
 
