@@ -217,7 +217,9 @@ import hpdcache_pkg::*;
 
     logic                    refill_fifo_resp_data_w, refill_fifo_resp_data_wok;
     hpdcache_refill_data_t   refill_fifo_resp_data_rdata;
-    hpdcache_refill_user_t   refill_fifo_resp_data_ruser;
+    localparam MEM_TO_ACCESS_RATIO = (HPDcacheCfg.accessWidth + HPDcacheCfg.u.memDataWidth - 1) / HPDcacheCfg.u.memDataWidth;
+    logic [HPDcacheCfg.u.accessUserWidth*MEM_TO_ACCESS_RATIO-1:0] refill_fifo_resp_data_ruser;
+    //hpdcache_refill_user_t   refill_fifo_resp_data_ruser;
     logic                    refill_fifo_resp_data_r;
 
     logic                    refill_core_rsp_valid;
@@ -676,11 +678,10 @@ import hpdcache_pkg::*;
         .rlast_o(/* unused */)
     );
 
-    localparam ratio = (HPDcacheCfg.accessWidth + HPDcacheCfg.u.memDataWidth - 1) / HPDcacheCfg.u.memDataWidth;
     hpdcache_data_resize #(
         .WR_WIDTH (HPDcacheCfg.u.memUserWidth),
-        .RD_WIDTH (HPDcacheCfg.u.accessUserWidth),
-        .DEPTH    (HPDcacheCfg.u.refillFifoDepth * ratio)
+        .RD_WIDTH (HPDcacheCfg.u.memUserWidth * MEM_TO_ACCESS_RATIO),//HPDcacheCfg.u.accessUserWidth),
+        .DEPTH    (HPDcacheCfg.u.refillFifoDepth)
     ) i_user_resize(
         .clk_i,
         .rst_ni,
@@ -703,7 +704,7 @@ import hpdcache_pkg::*;
     logic [HPDcacheCfg.accessBytes-1:0][7:0] clean_data;
     hpdcache_refill_user_t clean_user;
     assign clean_data = refill_fifo_resp_data_rdata;
-    assign clean_user = refill_fifo_resp_data_ruser;
+    assign clean_user = &refill_fifo_resp_data_ruser; // In case we have replicated user bits.
 
     if (HPDcacheCfg.u.wbEn) begin : gen_refill_dirty_data
         logic [HPDcacheCfg.accessBytes-1:0]      dirty_be;
