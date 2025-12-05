@@ -115,7 +115,7 @@ import hpdcache_pkg::*;
     localparam int unsigned WBUF_WORD_OFFSET = $clog2(WBUF_WORD_WIDTH/8);
     localparam int          WBUF_SEND_FIFO_DEPTH = WBUF_DATA_NENTRIES;
     localparam int unsigned WBUF_READ_MATCH_WIDTH = HPDcacheCfg.nlineWidth;
-    localparam int unsigned WBUF_MEM_DATA_RATIO = HPDcacheCfg.u.memDataWidth/
+    localparam int unsigned WBUF_MEM_DATA_RATIO = (HPDcacheCfg.u.memDataWidth+HPDcacheCfg.wbufDataWidth-1)/
                                                   HPDcacheCfg.wbufDataWidth;
     localparam int unsigned WBUF_MEM_DATA_WORD_INDEX_WIDTH = $clog2(WBUF_MEM_DATA_RATIO);
 
