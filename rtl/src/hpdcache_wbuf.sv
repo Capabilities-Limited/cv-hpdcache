@@ -115,9 +115,10 @@ import hpdcache_pkg::*;
     localparam int unsigned WBUF_WORD_OFFSET = $clog2(WBUF_WORD_WIDTH/8);
     localparam int          WBUF_SEND_FIFO_DEPTH = WBUF_DATA_NENTRIES;
     localparam int unsigned WBUF_READ_MATCH_WIDTH = HPDcacheCfg.nlineWidth;
-    localparam int unsigned WBUF_MEM_DATA_RATIO = (HPDcacheCfg.u.memDataWidth+HPDcacheCfg.wbufDataWidth-1)/
-                                                  HPDcacheCfg.wbufDataWidth;
+    localparam int unsigned WBUF_MEM_DATA_RATIO = HPDcacheCfg.u.memDataWidth/HPDcacheCfg.wbufDataWidth;
     localparam int unsigned WBUF_MEM_DATA_WORD_INDEX_WIDTH = $clog2(WBUF_MEM_DATA_RATIO);
+    localparam int unsigned MEM_WBUF_DATA_RATIO = HPDcacheCfg.wbufDataWidth/HPDcacheCfg.u.memDataWidth;
+    localparam int unsigned MEM_WBUF_DATA_WORD_INDEX_WIDTH = $clog2(MEM_WBUF_DATA_RATIO);
 
     typedef wbuf_user_t [WBUF_DATA_NWORDS-1:0] wbuf_user_buf_t;
     typedef wbuf_data_t [WBUF_DATA_NWORDS-1:0] wbuf_data_buf_t;
@@ -227,6 +228,7 @@ import hpdcache_pkg::*;
 
     logic                                       send_meta_valid;
     logic                                       send_meta_ready;
+    logic                                       send_meta_r;
     wbuf_send_meta_t                            wbuf_meta_send, wbuf_meta_send_q;
 
     logic                                       send_data_ready;
@@ -663,6 +665,60 @@ import hpdcache_pkg::*;
     assign send_data       = wbuf_data_q[send_data_q.data_ptr].data;
     assign send_be         = wbuf_data_q[send_data_q.data_ptr].be;
 
+    //  Memory Address and Data Interface
+    //  {{{
+    assign mem_req_write_o.mem_req_addr = { wbuf_meta_send_q.meta_tag, {WBUF_OFFSET_WIDTH{1'b0}} };
+    assign mem_req_write_o.mem_req_len = 0;
+    assign mem_req_write_o.mem_req_size = get_hpdcache_mem_size(HPDcacheCfg.wbufDataWidth/8);
+    assign mem_req_write_o.mem_req_id = hpdcache_mem_id_t'(wbuf_meta_send_q.meta_id);
+    assign mem_req_write_o.mem_req_command = HPDCACHE_MEM_WRITE;
+    assign mem_req_write_o.mem_req_atomic = HPDCACHE_MEM_ATOMIC_ADD;
+    assign mem_req_write_o.mem_req_cacheable = ~wbuf_meta_send_q.meta_uc;
+
+    if (WBUF_MEM_DATA_RATIO >= 1)
+        assign mem_req_write_data_o.mem_req_w_last = 1'b1,
+               send_meta_r = mem_req_write_ready_i;
+
+        if (WBUF_MEM_DATA_RATIO > 1) begin : gen_wbuf_data_upsizing
+            logic [HPDcacheCfg.wbufDataWidth/8-1:0][WBUF_MEM_DATA_RATIO-1:0] mem_req_be;
+
+            //  demux send BE
+            hpdcache_demux #(
+                .NOUTPUT     (WBUF_MEM_DATA_RATIO),
+                .DATA_WIDTH  (HPDcacheCfg.wbufDataWidth/8),
+                .ONE_HOT_SEL (1'b0)
+            ) mem_write_be_demux_i (
+                .data_i      (send_be),
+                .sel_i       (send_tag[0 +: WBUF_MEM_DATA_WORD_INDEX_WIDTH]),
+                .data_o      (mem_req_be)
+            );
+
+            assign mem_req_write_data_o.mem_req_w_user = {WBUF_MEM_DATA_RATIO{send_user}},
+                mem_req_write_data_o.mem_req_w_data = {WBUF_MEM_DATA_RATIO{send_data}},
+                mem_req_write_data_o.mem_req_w_be   = mem_req_be;
+
+        end else if (WBUF_MEM_DATA_RATIO == 1) begin : gen_wbuf_data_forwarding
+            assign mem_req_write_data_o.mem_req_w_user = send_user,
+                mem_req_write_data_o.mem_req_w_data = send_data,
+                mem_req_write_data_o.mem_req_w_be   = send_be;
+        end
+    else begin : gen_wbuf_data_downsizing
+        logic [HPDcacheCfg.u.memDataWidth-1:0][MEM_WBUF_DATA_RATIO-1:0] mem_req_data;
+        logic [HPDcacheCfg.u.memDataWidth/8-1:0][MEM_WBUF_DATA_RATIO-1:0] mem_req_be;
+        logic [MEM_WBUF_DATA_RATIO-1:0] mem_req_flit_count;
+        
+        always_ff @(posedge clk_i) begin
+            if (mem_req_write_ready_i) mem_req_flit_count <= mem_req_flit_count + 1;
+            else mem_req_flit_count <= 0;
+        end
+
+        assign mem_req_data = send_data,
+               mem_req_write_data_o.mem_req_w_data = mem_req_data[mem_req_flit_count],
+               mem_req_write_data_o.mem_req_w_last = (mem_req_flit_count==(MEM_WBUF_DATA_RATIO-1)),
+               send_meta_r = mem_req_write_ready_i && mem_req_write_data_o.mem_req_w_last;
+
+    end
+
     //    Meta-data channel
     assign send_meta_valid = (|wbuf_dir_pend_bv) & send_data_ready;
 
@@ -676,47 +732,11 @@ import hpdcache_pkg::*;
         .w_i                 (send_meta_valid),
         .wok_o               (send_meta_ready),
         .wdata_i             (wbuf_meta_send),
-        .r_i                 (mem_req_write_ready_i),
+        .r_i                 (send_meta_r),
         .rok_o               (mem_req_write_valid_o),
         .rdata_o             (wbuf_meta_send_q)
     );
     //  }}}
-
-    //  Memory Address and Data Interface
-    //  {{{
-    assign mem_req_write_o.mem_req_addr = { wbuf_meta_send_q.meta_tag, {WBUF_OFFSET_WIDTH{1'b0}} };
-    assign mem_req_write_o.mem_req_len = 0;
-    assign mem_req_write_o.mem_req_size = get_hpdcache_mem_size(HPDcacheCfg.wbufDataWidth/8);
-    assign mem_req_write_o.mem_req_id = hpdcache_mem_id_t'(wbuf_meta_send_q.meta_id);
-    assign mem_req_write_o.mem_req_command = HPDCACHE_MEM_WRITE;
-    assign mem_req_write_o.mem_req_atomic = HPDCACHE_MEM_ATOMIC_ADD;
-    assign mem_req_write_o.mem_req_cacheable = ~wbuf_meta_send_q.meta_uc;
-
-    assign mem_req_write_data_o.mem_req_w_last = 1'b1;
-
-    if (WBUF_MEM_DATA_RATIO > 1) begin : gen_wbuf_data_upsizing
-        logic [HPDcacheCfg.wbufDataWidth/8-1:0][WBUF_MEM_DATA_RATIO-1:0] mem_req_be;
-
-        //  demux send BE
-        hpdcache_demux #(
-            .NOUTPUT     (WBUF_MEM_DATA_RATIO),
-            .DATA_WIDTH  (HPDcacheCfg.wbufDataWidth/8),
-            .ONE_HOT_SEL (1'b0)
-        ) mem_write_be_demux_i (
-            .data_i      (send_be),
-            .sel_i       (send_tag[0 +: WBUF_MEM_DATA_WORD_INDEX_WIDTH]),
-            .data_o      (mem_req_be)
-        );
-
-        assign mem_req_write_data_o.mem_req_w_user = {WBUF_MEM_DATA_RATIO{send_user}},
-               mem_req_write_data_o.mem_req_w_data = {WBUF_MEM_DATA_RATIO{send_data}},
-               mem_req_write_data_o.mem_req_w_be   = mem_req_be;
-
-    end else if (WBUF_MEM_DATA_RATIO == 1) begin : gen_wbuf_data_forwarding
-        assign mem_req_write_data_o.mem_req_w_user = send_user,
-               mem_req_write_data_o.mem_req_w_data = send_data,
-               mem_req_write_data_o.mem_req_w_be   = send_be;
-    end
 
     assign mem_resp_write_ready_o = 1'b1;
     //  }}}
