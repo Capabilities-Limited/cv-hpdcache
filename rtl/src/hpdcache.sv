@@ -54,6 +54,7 @@ import hpdcache_pkg::*;
     parameter type hpdcache_mem_addr_t = logic,
     parameter type hpdcache_mem_id_t = logic,
     parameter type hpdcache_mem_data_t = logic,
+    parameter type hpdcache_mem_user_t = logic,
     parameter type hpdcache_mem_be_t = logic,
     parameter type hpdcache_mem_req_t = logic,
     parameter type hpdcache_mem_req_w_t = logic,
@@ -345,6 +346,7 @@ import hpdcache_pkg::*;
     hpdcache_word_t        flush_data_read_word;
     hpdcache_way_vector_t  flush_data_read_way;
     hpdcache_access_data_t flush_data_read_data;
+    hpdcache_access_user_t flush_data_read_user;
     logic                  flush_ack;
     hpdcache_nline_t       flush_ack_nline;
 
@@ -566,6 +568,7 @@ import hpdcache_pkg::*;
         .flush_data_read_word_i             (flush_data_read_word),
         .flush_data_read_way_i              (flush_data_read_way),
         .flush_data_read_data_o             (flush_data_read_data),
+        .flush_data_read_user_o             (flush_data_read_user),
         .flush_ack_i                        (flush_ack),
         .flush_ack_nline_i                  (flush_ack_nline),
 
@@ -1041,9 +1044,11 @@ import hpdcache_pkg::*;
             .hpdcache_word_t               (hpdcache_word_t),
             .hpdcache_way_vector_t         (hpdcache_way_vector_t),
             .hpdcache_access_data_t        (hpdcache_access_data_t),
+            .hpdcache_access_user_t        (hpdcache_access_user_t),
 
             .hpdcache_mem_id_t             (hpdcache_mem_id_t),
             .hpdcache_mem_data_t           (hpdcache_mem_data_t),
+            .hpdcache_mem_user_t           (hpdcache_mem_user_t),
             .hpdcache_mem_req_t            (hpdcache_mem_req_t),
             .hpdcache_mem_req_w_t          (hpdcache_mem_req_w_t),
             .hpdcache_mem_resp_w_t         (hpdcache_mem_resp_w_t)
@@ -1068,6 +1073,7 @@ import hpdcache_pkg::*;
             .flush_data_read_word_o        (flush_data_read_word),
             .flush_data_read_way_o         (flush_data_read_way),
             .flush_data_read_data_i        (flush_data_read_data),
+            .flush_data_read_user_i        (flush_data_read_user),
 
             .flush_ack_o                   (flush_ack),
             .flush_ack_nline_o             (flush_ack_nline),
