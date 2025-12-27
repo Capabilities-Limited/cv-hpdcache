@@ -46,6 +46,7 @@ import hpdcache_pkg::*;
     parameter type hpdcache_req_be_t = logic,
 
     parameter type hpdcache_access_data_t = logic,
+    parameter type hpdcache_access_user_t = logic,
     parameter type hpdcache_access_be_t = logic
 )
     //  }}}
@@ -170,6 +171,7 @@ import hpdcache_pkg::*;
     input  hpdcache_word_t                      data_flush_read_word_i,
     input  hpdcache_way_vector_t                data_flush_read_way_i,
     output hpdcache_access_data_t               data_flush_read_data_o,
+    output hpdcache_access_user_t               data_flush_read_user_o,
 
     input  logic                                data_refill_i,
     input  hpdcache_set_t                       data_refill_set_i,
@@ -307,6 +309,8 @@ import hpdcache_pkg::*;
     logic                [HPDcacheCfg.u.ways-1:0] dir_dirty;
     logic                [HPDcacheCfg.u.ways-1:0] dir_fetch;
     hpdcache_cl_user_t   [HPDcacheCfg.u.ways-1:0] dir_user;
+
+    hpdcache_access_user_t data_flush_read_user_d, data_flush_read_user_q;
 
     hpdcache_data_addr_t                       data_addr;
     hpdcache_data_enable_t                     data_cs;
@@ -984,6 +988,13 @@ import hpdcache_pkg::*;
         .sel_i       (data_flush_read_way),
         .data_o      (data_flush_read_data_o)
     );
+    assign data_flush_read_user_d = dir_hit_user_o[data_flush_read_word_i];
+    assign data_flush_read_user_o = data_flush_read_user_q;
+    always_ff @(posedge clk_i or negedge rst_ni)
+    begin : user_delay_ff
+      data_flush_read_user_q <= data_flush_read_user_d;
+    end
+    //assign data_flush_read_user_o = dir_hit_user_o[data_flush_read_word_i];
     //  }}}
 
     //  Assertions

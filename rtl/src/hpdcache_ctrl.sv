@@ -146,6 +146,7 @@ import hpdcache_pkg::*;
     input  hpdcache_word_t        flush_data_read_word_i,
     input  hpdcache_way_vector_t  flush_data_read_way_i,
     output hpdcache_access_data_t flush_data_read_data_o,
+    output hpdcache_access_user_t flush_data_read_user_o,
     input  logic                  flush_ack_i,
     input  hpdcache_nline_t       flush_ack_nline_i,
 
@@ -927,6 +928,7 @@ import hpdcache_pkg::*;
         .hpdcache_req_data_t           (hpdcache_req_data_t),
         .hpdcache_req_be_t             (hpdcache_req_be_t),
         .hpdcache_access_data_t        (hpdcache_access_data_t),
+        .hpdcache_access_user_t        (hpdcache_access_user_t),
         .hpdcache_access_be_t          (hpdcache_access_be_t)
     ) hpdcache_memctrl_i(
         .clk_i,
@@ -1035,6 +1037,7 @@ import hpdcache_pkg::*;
         .data_flush_read_way_i         (flush_data_read_way_i),
         .data_flush_read_word_i        (flush_data_read_word_i),
         .data_flush_read_data_o        (flush_data_read_data_o),
+        .data_flush_read_user_o        (flush_data_read_user_o),
 
         .data_refill_i                 (refill_write_data_i),
         .data_refill_set_i             (refill_set_i),

@@ -38,9 +38,11 @@ import hpdcache_pkg::*;
     parameter type hpdcache_way_vector_t = logic,
 
     parameter type hpdcache_access_data_t = logic,
+    parameter type hpdcache_access_user_t = logic,
 
     parameter type hpdcache_mem_id_t = logic,
     parameter type hpdcache_mem_data_t = logic,
+    parameter type hpdcache_mem_user_t = logic,
     parameter type hpdcache_mem_req_t = logic,
     parameter type hpdcache_mem_req_w_t = logic,
     parameter type hpdcache_mem_resp_w_t = logic
@@ -81,6 +83,7 @@ import hpdcache_pkg::*;
     output hpdcache_word_t        flush_data_read_word_o,
     output hpdcache_way_vector_t  flush_data_read_way_o,
     input  hpdcache_access_data_t flush_data_read_data_i,
+    input  hpdcache_access_user_t flush_data_read_user_i,
     //      }}}
 
     //      ACK monitoring interface
@@ -107,6 +110,7 @@ import hpdcache_pkg::*;
 
     //  Definition of constants and types
     //  {{{
+    localparam int unsigned MemFlitPerAccess = hpdcache_max(HPDcacheCfg.accessWidth / HPDcacheCfg.u.memDataWidth, 1);
     localparam int unsigned FlushEntries = HPDcacheCfg.u.flushEntries;
     localparam int unsigned FlushIndexWidth = (FlushEntries > 1) ? $clog2(FlushEntries) : 1;
     // FlushMaxEntries is equal to FlushEntries if it is a power of two
@@ -147,9 +151,11 @@ import hpdcache_pkg::*;
     logic                       flush_resizer_w, flush_resizer_wok;
     logic                       flush_resizer_wlast;
 
+    logic                       flush_mem_req_deq_user;
     logic                       flush_mem_req_w, flush_mem_req_wok;
     hpdcache_mem_req_t          flush_mem_req_wmeta;
     hpdcache_mem_data_t         flush_mem_req_rdata;
+    hpdcache_mem_user_t         flush_mem_req_ruser;
     logic                       flush_mem_req_rlast;
 
     logic [FlushEntries-1:0]    flush_check_hit;
@@ -353,13 +359,33 @@ import hpdcache_pkg::*;
         .rdata_o        (flush_mem_req_rdata),
         .rlast_o        (/* open */)
     );
+    hpdcache_data_resize #(
+        .WR_WIDTH       (HPDcacheCfg.u.accessUserWidth),
+        .RD_WIDTH       (HPDcacheCfg.u.memUserWidth),
+        .DEPTH          (HPDcacheCfg.u.flushFifoDepth) // XXX consider deriving from ratio to data width
+    ) flush_user_resizer_i(
+        .clk_i,
+        .rst_ni,
 
+        .w_i            (flush_resizer_w),
+        .wok_o          (/* synced with data signals */),
+        .wdata_i        (flush_data_read_user_i),
+        .wlast_i        (flush_resizer_wlast),
+
+        .r_i            (flush_mem_req_deq_user && mem_req_write_data_ready_i),
+        .rok_o          (/* synced with data signals */),
+        .rdata_o        (flush_mem_req_ruser),
+        .rlast_o        (/* open */)
+    );
 
     //  Logic to detect the end of a packet
     //
     hpdcache_mem_len_t write_flits_cnt_q;
 
     assign flush_mem_req_rlast = (hpdcache_uint32'(write_flits_cnt_q) == MemReqFlits);
+
+    assign flush_mem_req_deq_user = (MemFlitPerAccess <= 1) ? 1'b1
+                                                            : ($clog2(MemFlitPerAccess)'(~0) == write_flits_cnt_q[$clog2(MemFlitPerAccess)-1:0]) ;
 
     always_ff @(posedge clk_i or negedge rst_ni)
     begin
@@ -380,7 +406,7 @@ import hpdcache_pkg::*;
     //
     assign mem_req_write_data_o = '{
         mem_req_w_data: flush_mem_req_rdata,
-        mem_req_w_user: '0,
+        mem_req_w_user: flush_mem_req_ruser,
         mem_req_w_be: '1,
         mem_req_w_last: flush_mem_req_rlast
     };
