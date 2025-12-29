@@ -45,8 +45,8 @@ import hpdcache_pkg::*;
     parameter type hpdcache_req_offset_t = logic,
     parameter type hpdcache_req_tid_t = logic,
     parameter type hpdcache_req_sid_t = logic,
-    parameter type hpdcache_req_data_t = logic,
     parameter type hpdcache_req_user_t = logic,
+    parameter type hpdcache_req_data_t = logic,
     parameter type hpdcache_req_be_t = logic,
 
     parameter type hpdcache_req_t = logic,
@@ -113,6 +113,7 @@ import hpdcache_pkg::*;
     input  logic                  refill_write_dir_i,
     input  logic                  refill_write_data_i,
     input  hpdcache_word_t        refill_word_i,
+    input  hpdcache_access_user_t refill_user_i,
     input  hpdcache_access_data_t refill_data_i,
     input  logic                  refill_core_rsp_valid_i,
     input  hpdcache_rsp_t         refill_core_rsp_i,
@@ -185,6 +186,7 @@ import hpdcache_pkg::*;
     input  hpdcache_req_size_t    uc_data_amo_write_size_i,
     input  hpdcache_word_t        uc_data_amo_write_word_i,
     input  hpdcache_way_vector_t  uc_data_amo_write_way_i,
+    input  hpdcache_req_user_t    uc_data_amo_write_user_i,
     input  hpdcache_req_data_t    uc_data_amo_write_data_i,
     input  hpdcache_req_be_t      uc_data_amo_write_be_i,
     output logic                  uc_core_rsp_ready_o,
@@ -230,7 +232,6 @@ import hpdcache_pkg::*;
     input  logic                  cmo_dir_updt_wback_i,
     input  logic                  cmo_dir_updt_dirty_i,
     input  logic                  cmo_dir_updt_fetch_i,
-    input  hpdcache_cl_user_t     cmo_dir_updt_user_i,
     input  hpdcache_tag_t         cmo_dir_updt_tag_i,
     output logic                  cmo_core_rsp_ready_o,
     input  logic                  cmo_core_rsp_valid_i,
@@ -334,7 +335,6 @@ import hpdcache_pkg::*;
     logic                    st2_dir_updt_wback_q, st2_dir_updt_wback_d;
     logic                    st2_dir_updt_dirty_q, st2_dir_updt_dirty_d;
     logic                    st2_dir_updt_fetch_q, st2_dir_updt_fetch_d;
-    hpdcache_cl_user_t       st2_dir_updt_user_q, st2_dir_updt_user_tmp, st2_dir_updt_user_d;
 
     hpdcache_set_t           err_set_q;
     hpdcache_way_vector_t    err_way_q, err_way_d;
@@ -416,7 +416,6 @@ import hpdcache_pkg::*;
     logic                    st1_dir_hit_wback;
     logic                    st1_dir_hit_dirty;
     logic                    st1_dir_hit_fetch;
-    hpdcache_cl_user_t       st1_dir_hit_user;
     hpdcache_way_vector_t    st1_dir_hit_way;
     hpdcache_way_t           st1_dir_hit_way_index;
     hpdcache_tag_t           st1_dir_hit_tag;
@@ -424,7 +423,6 @@ import hpdcache_pkg::*;
     logic                    st1_dir_victim_valid;
     logic                    st1_dir_victim_wback;
     logic                    st1_dir_victim_dirty;
-    hpdcache_cl_user_t       st1_dir_victim_user;
     hpdcache_tag_t           st1_dir_victim_tag;
     hpdcache_way_vector_t    st1_dir_victim_way;
     hpdcache_way_vector_t    st1_dir_err_cor;
@@ -474,6 +472,7 @@ import hpdcache_pkg::*;
     hpdcache_req_size_t      data_req_read_size;
     hpdcache_word_t          data_req_read_word;
     hpdcache_way_vector_t    data_req_read_way;
+    hpdcache_req_user_t      data_req_read_user;
     hpdcache_req_data_t      data_req_read_data;
 
     logic                    rd_wr_conflict;
@@ -652,12 +651,10 @@ import hpdcache_pkg::*;
         .st1_dir_hit_wback_i                (st1_dir_hit_wback),
         .st1_dir_hit_dirty_i                (st1_dir_hit_dirty),
         .st1_dir_hit_fetch_i                (st1_dir_hit_fetch),
-        .st1_dir_hit_user_i                 (st1_dir_hit_user),
         .st1_dir_victim_unavailable_i       (st1_dir_victim_unavailable),
         .st1_dir_victim_valid_i             (st1_dir_victim_valid),
         .st1_dir_victim_wback_i             (st1_dir_victim_wback),
         .st1_dir_victim_dirty_i             (st1_dir_victim_dirty),
-        .st1_dir_victim_user_i              (st1_dir_victim_user),
         .st1_dir_err_cor_i                  (|st1_dir_err_cor),
         .st1_dir_err_unc_i                  (|st1_dir_err_unc),
         .st1_dat_err_cor_i                  (|st1_dat_err_cor),
@@ -693,13 +690,11 @@ import hpdcache_pkg::*;
         .st2_dir_updt_wback_i               (st2_dir_updt_wback_q),
         .st2_dir_updt_dirty_i               (st2_dir_updt_dirty_q),
         .st2_dir_updt_fetch_i               (st2_dir_updt_fetch_q),
-        .st2_dir_updt_user_i                (st2_dir_updt_user_q),
         .st2_dir_updt_o                     (st2_dir_updt_d),
         .st2_dir_updt_valid_o               (st2_dir_updt_valid_d),
         .st2_dir_updt_wback_o               (st2_dir_updt_wback_d),
         .st2_dir_updt_dirty_o               (st2_dir_updt_dirty_d),
         .st2_dir_updt_fetch_o               (st2_dir_updt_fetch_d),
-        .st2_dir_updt_user_o                (st2_dir_updt_user_tmp),
 
         .req_cachedata_read_o               (data_req_read),
         .rd_wr_conflict_i                   (rd_wr_conflict),
@@ -905,12 +900,6 @@ import hpdcache_pkg::*;
     end
     //  }}}
 
-    always_comb
-    begin: st2_dir_updt_d_comb
-        st2_dir_updt_user_d = st2_dir_updt_user_tmp;
-        st2_dir_updt_user_d[st1_req_word] = st1_req_user;
-    end
-
     //  Pipeline stage 2 registers
     //  {{{
     always_ff @(posedge clk_i)
@@ -942,7 +931,6 @@ import hpdcache_pkg::*;
             st2_dir_updt_wback_q <= st2_dir_updt_wback_d;
             st2_dir_updt_dirty_q <= st2_dir_updt_dirty_d;
             st2_dir_updt_fetch_q <= st2_dir_updt_fetch_d;
-            st2_dir_updt_user_q  <= st2_dir_updt_user_d;
         end
     end
 
@@ -1007,6 +995,7 @@ import hpdcache_pkg::*;
         .hpdcache_data_word_t          (hpdcache_data_word_t),
         .hpdcache_data_be_t            (hpdcache_data_be_t),
         .hpdcache_req_data_t           (hpdcache_req_data_t),
+        .hpdcache_req_user_t           (hpdcache_req_user_t),
         .hpdcache_req_be_t             (hpdcache_req_be_t),
         .hpdcache_access_data_t        (hpdcache_access_data_t),
         .hpdcache_access_user_t        (hpdcache_access_user_t),
@@ -1027,7 +1016,6 @@ import hpdcache_pkg::*;
         .dir_hit_wback_o               (st1_dir_hit_wback),
         .dir_hit_dirty_o               (st1_dir_hit_dirty),
         .dir_hit_fetch_o               (st1_dir_hit_fetch),
-        .dir_hit_user_o                (st1_dir_hit_user),
 
         .dir_updt_i                    (st2_dir_updt_q),
         .dir_updt_set_i                (st2_dir_updt_set_q),
@@ -1037,7 +1025,6 @@ import hpdcache_pkg::*;
         .dir_updt_wback_i              (st2_dir_updt_wback_q),
         .dir_updt_dirty_i              (st2_dir_updt_dirty_q),
         .dir_updt_fetch_i              (st2_dir_updt_fetch_q),
-        .dir_updt_user_i               (st2_dir_updt_user_q),
 
         .dir_refill_i                  (refill_write_dir_i),
         .dir_refill_set_i              (refill_set_i),
@@ -1050,7 +1037,6 @@ import hpdcache_pkg::*;
         .dir_victim_valid_o            (st1_dir_victim_valid),
         .dir_victim_wback_o            (st1_dir_victim_wback),
         .dir_victim_dirty_o            (st1_dir_victim_dirty),
-        .dir_victim_user_o             (st1_dir_victim_user),
         .dir_victim_tag_o              (st1_dir_victim_tag),
         .dir_victim_way_o              (st1_dir_victim_way),
 
@@ -1082,7 +1068,6 @@ import hpdcache_pkg::*;
         .dir_cmo_updt_wback_i          (cmo_dir_updt_wback_i),
         .dir_cmo_updt_dirty_i          (cmo_dir_updt_dirty_i),
         .dir_cmo_updt_fetch_i          (cmo_dir_updt_fetch_i),
-        .dir_cmo_updt_user_i           (cmo_dir_updt_user_i),
 
         .dir_err_cor_o                 (st1_dir_err_cor),
         .dir_err_unc_o                 (st1_dir_err_unc),
@@ -1101,6 +1086,7 @@ import hpdcache_pkg::*;
         .data_req_read_size_i          (data_req_read_size),
         .data_req_read_word_i          (data_req_read_word),
         .data_req_read_way_i           (data_req_read_way),
+        .data_req_read_user_o          (data_req_read_user),
         .data_req_read_data_o          (data_req_read_data),
 
         .data_req_write_i              (st1_req_cachedata_write),
@@ -1111,6 +1097,7 @@ import hpdcache_pkg::*;
         .data_req_write_size_i         (st1_req.req.size),
         .data_req_write_word_i         (st1_req_word),
         .data_req_write_data_i         (st1_req.req.wdata),
+        .data_req_write_user_i         (st1_req.req.wuser),
         .data_req_write_be_i           (st1_req.req.be),
 
         .data_amo_write_i              (uc_data_amo_write_i),
@@ -1119,6 +1106,7 @@ import hpdcache_pkg::*;
         .data_amo_write_size_i         (uc_data_amo_write_size_i),
         .data_amo_write_word_i         (uc_data_amo_write_word_i),
         .data_amo_write_way_i          (uc_data_amo_write_way_i),
+        .data_amo_write_user_i         (uc_data_amo_write_user_i),
         .data_amo_write_data_i         (uc_data_amo_write_data_i),
         .data_amo_write_be_i           (uc_data_amo_write_be_i),
 
@@ -1134,6 +1122,7 @@ import hpdcache_pkg::*;
         .data_refill_way_i             (refill_way_i),
         .data_refill_word_i            (refill_word_i),
         .data_refill_data_i            (refill_data_i),
+        .data_refill_user_i            (refill_user_i),
 
         .data_err_cor_o                (st1_dat_err_cor),
         .data_err_unc_o                (st1_dat_err_unc),
@@ -1144,6 +1133,7 @@ import hpdcache_pkg::*;
         .data_err_rdata_o              (err_dat_rdata_d),
         .data_err_write_i              (err_dat_write),
         .data_err_wdata_i              (err_dat_wdata)
+        // XXX TODO data_err_wuser ?
     );
 
     assign st1_dir_hit           = |st1_dir_hit_way;
@@ -1728,7 +1718,7 @@ import hpdcache_pkg::*;
     assign core_rsp_o.ruser   = (refill_core_rsp_valid_i ? refill_core_rsp_i.ruser :
                                 (cmo_core_rsp_valid_i    ? cmo_core_rsp_i.ruser :
                                 (uc_core_rsp_valid_i     ? uc_core_rsp_i.ruser :
-                                                           st1_dir_hit_user[st1_req_word])));
+                                                           data_req_read_user)));
     assign core_rsp_o.sid     = (refill_core_rsp_valid_i ? refill_core_rsp_i.sid :
                                 (cmo_core_rsp_valid_i    ? cmo_core_rsp_i.sid :
                                 (uc_core_rsp_valid_i     ? uc_core_rsp_i.sid :

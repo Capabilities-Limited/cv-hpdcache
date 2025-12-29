@@ -26,6 +26,7 @@ import hpdcache_pkg::*;
     parameter type hpdcache_req_addr_t = logic,
     parameter type hpdcache_req_tid_t = logic,
     parameter type hpdcache_req_sid_t = logic,
+    parameter type hpdcache_req_user_t = logic,
     parameter type hpdcache_req_data_t = logic,
     parameter type hpdcache_req_be_t = logic,
 
@@ -77,6 +78,7 @@ import hpdcache_pkg::*;
     output hpdcache_req_size_t    data_amo_write_size_o,
     output hpdcache_word_t        data_amo_write_word_o,
     output hpdcache_way_vector_t  data_amo_write_way_o,
+    output hpdcache_req_user_t    data_amo_write_user_o,
     output hpdcache_req_data_t    data_amo_write_data_o,
     output hpdcache_req_be_t      data_amo_write_be_o,
     // }}}
@@ -628,6 +630,10 @@ import hpdcache_pkg::*;
         assign data_amo_write_data_o = data_amo_write_data;
         assign data_amo_write_be_o = req_be_q;
     end
+    // XXX TODO implement user bits on amo,
+    // probably as a function of req_data_i and mem_resp_read_i.mem_resp_r_data
+    assign data_amo_write_user_o = '0;
+    // XXX TODO
 //  }}}
 
 //  Core response outputs
