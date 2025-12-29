@@ -360,8 +360,8 @@ import hpdcache_pkg::*;
         .rlast_o        (/* open */)
     );
     hpdcache_data_resize #(
-        .WR_WIDTH       (HPDcacheCfg.u.accessUserWidth),
-        .RD_WIDTH       (HPDcacheCfg.u.memUserWidth),
+        .WR_WIDTH       (HPDcacheCfg.u.wordUserWidth*HPDcacheCfg.u.accessWords),
+        .RD_WIDTH       (HPDcacheCfg.u.wordUserWidth*HPDcacheCfg.wordsPerMemFlit),
         .DEPTH          (HPDcacheCfg.u.flushFifoDepth) // XXX consider deriving from ratio to data width
     ) flush_user_resizer_i(
         .clk_i,
