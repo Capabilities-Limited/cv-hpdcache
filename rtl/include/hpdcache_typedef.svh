@@ -62,9 +62,9 @@
     }
 
 `define HPDCACHE_TYPEDEF_MEM_ATTR_T(__addr_t, __id_t, __user_t, __data_t, __be_t, __params) \
+    typedef logic [__params.wordsPerMemFlit-1:0][__params.u.wordUserWidth-1:0] __user_t; \
     typedef logic [  __params.u.memAddrWidth-1:0] __addr_t; \
     typedef logic [    __params.u.memIdWidth-1:0] __id_t; \
-    typedef logic [  __params.u.memUserWidth-1:0] __user_t; \
     typedef logic [  __params.u.memDataWidth-1:0] __data_t; \
     typedef logic [__params.u.memDataWidth/8-1:0] __be_t
 
@@ -101,9 +101,9 @@
     typedef logic       [      __params.u.wordWidth-1:0] __word_t; \
     typedef logic       [    __params.u.wordWidth/8-1:0] __word_be_t; \
     typedef logic       [   __params.reqOffsetWidth-1:0] __offset_t; \
-    typedef logic       [   __params.u.reqUserWidth-1:0] __user_t; \
     typedef __word_t    [       __params.u.reqWords-1:0] __data_t; \
     typedef __word_be_t [       __params.u.reqWords-1:0] __be_t; \
+    typedef logic       [__params.u.reqWords-1:0][__params.u.wordUserWidth-1:0] __user_t; \
     typedef logic       [  __params.u.reqSrcIdWidth-1:0] __sid_t; \
     typedef logic       [__params.u.reqTransIdWidth-1:0] __tid_t
 

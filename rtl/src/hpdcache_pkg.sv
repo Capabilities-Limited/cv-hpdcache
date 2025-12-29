@@ -103,6 +103,10 @@ package hpdcache_pkg;
 
     //      Definition of functions
     //      {{{
+    function automatic int unsigned hpdcache_ceil_div(int unsigned x, int unsigned y);
+        return (x + y - 1) / y;
+    endfunction
+
     function automatic int unsigned hpdcache_max(int unsigned x, int unsigned y);
         return (x < y) ? y : x;
     endfunction
@@ -385,14 +389,14 @@ package hpdcache_pkg;
         int unsigned paWidth;
         //  Word width (bits)
         int unsigned wordWidth;
+        //  Word user width (bits)
+        int unsigned wordUserWidth;
         //  Number of sets
         int unsigned sets;
         //  Number of ways
         int unsigned ways;
         //  Cache-Line width (words)
         int unsigned clWords;
-        //  number of user bits in a core request
-        int unsigned reqUserWidth;
         //  Number of words in the request data channels (request and response)
         int unsigned reqWords;
         //  Request transaction ID width (bits)
@@ -414,8 +418,6 @@ package hpdcache_pkg;
         //  -  This limits the maximum width for the data channel from requesters
         //  -  This impacts the refill latency (more ACCESS_WORDS -> less REFILL LATENCY)
         int unsigned accessWords;
-        // number of user bits paired with accessWords
-        int unsigned accessUserWidth;
         //  MSHR number of sets
         int unsigned mshrSets;
         //  MSHR number of ways
@@ -456,8 +458,6 @@ package hpdcache_pkg;
         int unsigned memIdWidth;
         //  Width of the data in the memory interface
         int unsigned memDataWidth;
-        //  Width of the user in the memory interface
-        int unsigned memUserWidth;
         //  Enable support for the write-through policy
         bit wtEn;
         //  Enable support for the write-back policy
@@ -482,8 +482,6 @@ package hpdcache_pkg;
         int unsigned tagWidth;
         int unsigned reqWordIdxWidth;
         int unsigned reqOffsetWidth;
-        int unsigned reqUserWidth;
-        int unsigned clReqUsers;
         int unsigned reqDataWidth;
         int unsigned reqDataBytes;
         int unsigned mshrSetWidth;
@@ -494,6 +492,7 @@ package hpdcache_pkg;
         int unsigned wbufDataPtrWidth;
         int unsigned accessWidth;
         int unsigned accessBytes;
+        int unsigned wordsPerMemFlit;
     } hpdcache_cfg_t;
 
     function automatic hpdcache_cfg_t hpdcacheBuildConfig(input hpdcache_user_cfg_t p);
@@ -511,8 +510,6 @@ package hpdcache_pkg;
         ret.tagWidth = ret.nlineWidth - ret.setWidth;
         ret.reqWordIdxWidth = $clog2(p.reqWords);
         ret.reqOffsetWidth = p.paWidth - ret.tagWidth;
-        ret.reqUserWidth = p.reqUserWidth;
-        ret.clReqUsers = p.clWords * p.reqUserWidth;
         ret.reqDataWidth = p.reqWords * p.wordWidth;
         ret.reqDataBytes = ret.reqDataWidth/8;
 
@@ -527,6 +524,8 @@ package hpdcache_pkg;
 
         ret.accessWidth = p.accessWords * p.wordWidth;
         ret.accessBytes = ret.accessWidth/8;
+
+        ret.wordsPerMemFlit = hpdcache_ceil_div(p.memDataWidth, p.wordWidth);
 
         return ret;
     endfunction

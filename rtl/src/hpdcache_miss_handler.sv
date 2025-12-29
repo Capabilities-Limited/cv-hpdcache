@@ -119,6 +119,7 @@ import hpdcache_pkg::*;
     output hpdcache_dir_entry_t   refill_dir_entry_o,
     output logic                  refill_write_dir_o,
     output logic                  refill_write_data_o,
+    output hpdcache_refill_user_t refill_user_o,
     output hpdcache_refill_data_t refill_data_o,
     output hpdcache_word_t        refill_word_o,
     output hpdcache_nline_t       refill_nline_o,
@@ -155,6 +156,21 @@ import hpdcache_pkg::*;
                                                 HPDcacheCfg.u.reqWords;
     localparam hpdcache_uint REFILL_LAST_CHUNK_WORD = HPDcacheCfg.u.clWords -
                                                       HPDcacheCfg.u.accessWords;
+    localparam hpdcache_uint ACCESS_MEM_RATIO = hpdcache_ceil_div(HPDcacheCfg.accessWidth, HPDcacheCfg.u.memDataWidth);
+
+    function automatic logic [HPDcacheCfg.u.wordUserWidth-1:0] and_reduce_user (
+        input logic [(HPDcacheCfg.u.wordUserWidth*ACCESS_MEM_RATIO)-1:0] ruser
+    );
+        logic [HPDcacheCfg.u.wordUserWidth-1:0] result;
+        int i, j;
+        result = ~0;
+        for (j = 0; j < ACCESS_MEM_RATIO; j++) begin
+            for (i = 0; i < HPDcacheCfg.u.wordUserWidth; i++) begin
+                result[i] &= ruser[j*HPDcacheCfg.u.wordUserWidth + i];
+            end
+        end
+        return result;
+    endfunction
 
     typedef enum logic {
         MISS_REQ_IDLE = 1'b0,
@@ -190,7 +206,6 @@ import hpdcache_pkg::*;
     refill_fsm_e             refill_fsm_q, refill_fsm_d;
     hpdcache_set_t           refill_set_q;
     hpdcache_tag_t           refill_tag_q;
-    hpdcache_cl_user_t       refill_cl_user_q, refill_cl_user_d;
     hpdcache_way_t           refill_way_q;
     hpdcache_req_sid_t       refill_sid_q;
     hpdcache_req_tid_t       refill_tid_q;
@@ -217,9 +232,7 @@ import hpdcache_pkg::*;
 
     logic                    refill_fifo_resp_data_w, refill_fifo_resp_data_wok;
     hpdcache_refill_data_t   refill_fifo_resp_data_rdata;
-    localparam MEM_TO_ACCESS_RATIO = (HPDcacheCfg.accessWidth + HPDcacheCfg.u.memDataWidth - 1) / HPDcacheCfg.u.memDataWidth;
-    logic [HPDcacheCfg.u.accessUserWidth*MEM_TO_ACCESS_RATIO-1:0] refill_fifo_resp_data_ruser;
-    //hpdcache_refill_user_t   refill_fifo_resp_data_ruser;
+    logic [(HPDcacheCfg.u.wordUserWidth*ACCESS_MEM_RATIO)-1:0] refill_fifo_resp_data_ruser;
     logic                    refill_fifo_resp_data_r;
 
     logic                    refill_core_rsp_valid;
@@ -582,7 +595,6 @@ import hpdcache_pkg::*;
         dirty   : ~refill_is_error_o & refill_dirty_q,
         fetch   : 1'b0,
         tag     : refill_tag_q,
-        user    : refill_cl_user_d,
         default :'0
     };
 
@@ -679,15 +691,15 @@ import hpdcache_pkg::*;
     );
 
     hpdcache_data_resize #(
-        .WR_WIDTH (HPDcacheCfg.u.memUserWidth),
-        .RD_WIDTH (HPDcacheCfg.u.memUserWidth * MEM_TO_ACCESS_RATIO),//HPDcacheCfg.u.accessUserWidth),
+        .WR_WIDTH (HPDcacheCfg.u.wordUserWidth*HPDcacheCfg.wordsPerMemFlit),
+        .RD_WIDTH (HPDcacheCfg.u.wordUserWidth*ACCESS_MEM_RATIO),
         .DEPTH    (HPDcacheCfg.u.refillFifoDepth)
     ) i_user_resize(
         .clk_i,
         .rst_ni,
 
         .w_i    (refill_fifo_resp_data_w),
-        .wok_o  (refill_fifo_resp_data_wok),
+        .wok_o  (/* use refill_fifo_resp_data_wok */),
         .wdata_i(mem_resp_i.mem_resp_r_user),
         .wlast_i(mem_resp_i.mem_resp_r_last),
 
@@ -704,7 +716,7 @@ import hpdcache_pkg::*;
     logic [HPDcacheCfg.accessBytes-1:0][7:0] clean_data;
     hpdcache_refill_user_t clean_user;
     assign clean_data = refill_fifo_resp_data_rdata;
-    assign clean_user = &refill_fifo_resp_data_ruser; // In case we have replicated user bits.
+    assign clean_user = and_reduce_user(refill_fifo_resp_data_ruser); // In case we have replicated user bits.
 
     if (HPDcacheCfg.u.wbEn) begin : gen_refill_dirty_data
         logic [HPDcacheCfg.accessBytes-1:0]      dirty_be;
@@ -749,6 +761,7 @@ import hpdcache_pkg::*;
         assign refill_data_o = hpdcache_refill_data_t'(clean_data);
         assign refill_user = hpdcache_refill_user_t'(clean_user);
     end
+    assign refill_user_o = refill_user;
 
     //      The DATA fifo is only used for refill responses
     assign refill_fifo_resp_data_w = mem_resp_valid_i &
@@ -770,14 +783,6 @@ import hpdcache_pkg::*;
                 mem_resp_ready_o = (refill_fifo_resp_meta_wok | ~mem_resp_i.mem_resp_r_last) &
                                     refill_fifo_resp_data_wok;
             end
-        end
-    end
-
-    always_comb
-    begin : refill_cl_user_comb
-        refill_cl_user_d = refill_cl_user_q;
-        if (refill_fsm_q == REFILL_WRITE) begin
-            refill_cl_user_d[refill_cnt_q] = refill_user;
         end
     end
 
@@ -807,7 +812,6 @@ import hpdcache_pkg::*;
             refill_dirty_be_q <= mshr_ack_be;
             refill_core_rsp_word_q <= mshr_ack_word;
         end
-        refill_cl_user_q <= refill_cl_user_d;
         refill_cnt_q <= refill_cnt_d;
     end
     //  }}}

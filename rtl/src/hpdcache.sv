@@ -152,7 +152,7 @@ import hpdcache_pkg::*;
     typedef logic unsigned [HPDcacheCfg.clWordIdxWidth-1:0] hpdcache_word_t;
     typedef logic unsigned [HPDcacheCfg.u.ways-1:0] hpdcache_way_vector_t;
     typedef logic unsigned [HPDcacheCfg.wayIndexWidth-1:0] hpdcache_way_t;
-    typedef hpdcache_req_user_t [HPDcacheCfg.clReqUsers-1:0] hpdcache_cl_user_t;
+    typedef logic [HPDcacheCfg.u.clWords-1:0][HPDcacheCfg.u.wordUserWidth-1:0] hpdcache_cl_user_t;
 
     //  Cache Directory entry definition
     //  {{{
@@ -172,11 +172,6 @@ import hpdcache_pkg::*;
         logic fetch; //  cacheline is reserved for a new cacheline being fetched
         //  }}}
 
-        //  Cacheline user metadata
-        //  {{{
-        hpdcache_cl_user_t user;
-        //  }}}
-
         //  Cacheline address tag
         //  {{{
         hpdcache_tag_t tag;
@@ -186,7 +181,7 @@ import hpdcache_pkg::*;
 
     typedef hpdcache_data_word_t [HPDcacheCfg.u.accessWords-1:0] hpdcache_access_data_t;
     typedef hpdcache_data_be_t [HPDcacheCfg.u.accessWords-1:0] hpdcache_access_be_t;
-    typedef logic [HPDcacheCfg.u.accessUserWidth-1:0] hpdcache_access_user_t;
+    typedef logic [HPDcacheCfg.u.accessWords-1:0][HPDcacheCfg.u.wordUserWidth-1:0] hpdcache_access_user_t;
 
     typedef hpdcache_req_addr_t wbuf_addr_t;
     typedef hpdcache_req_user_t wbuf_user_t;
@@ -207,6 +202,7 @@ import hpdcache_pkg::*;
     logic                  refill_write_dir;
     logic                  refill_write_data;
     hpdcache_word_t        refill_word;
+    hpdcache_access_user_t refill_user;
     hpdcache_access_data_t refill_data;
     logic                  refill_core_rsp_valid;
     hpdcache_rsp_t         refill_core_rsp;
@@ -280,6 +276,7 @@ import hpdcache_pkg::*;
     hpdcache_set_t         uc_data_amo_write_set;
     hpdcache_req_size_t    uc_data_amo_write_size;
     hpdcache_word_t        uc_data_amo_write_word;
+    hpdcache_req_user_t    uc_data_amo_write_user;
     hpdcache_req_data_t    uc_data_amo_write_data;
     hpdcache_req_be_t      uc_data_amo_write_be;
     logic                  uc_lrsc_snoop;
@@ -326,7 +323,6 @@ import hpdcache_pkg::*;
     logic                  cmo_dir_updt_wback;
     logic                  cmo_dir_updt_dirty;
     logic                  cmo_dir_updt_fetch;
-    hpdcache_cl_user_t     cmo_dir_updt_user;
     hpdcache_tag_t         cmo_dir_updt_tag;
     logic                  cmo_wait;
     logic                  cmo_flush_alloc;
@@ -553,6 +549,7 @@ import hpdcache_pkg::*;
         .refill_write_dir_i                 (refill_write_dir),
         .refill_write_data_i                (refill_write_data),
         .refill_word_i                      (refill_word),
+        .refill_user_i                      (refill_user),
         .refill_data_i                      (refill_data),
         .refill_core_rsp_valid_i            (refill_core_rsp_valid),
         .refill_core_rsp_i                  (refill_core_rsp),
@@ -623,6 +620,7 @@ import hpdcache_pkg::*;
         .uc_data_amo_write_set_i            (uc_data_amo_write_set),
         .uc_data_amo_write_size_i           (uc_data_amo_write_size),
         .uc_data_amo_write_word_i           (uc_data_amo_write_word),
+        .uc_data_amo_write_user_i           (uc_data_amo_write_user),
         .uc_data_amo_write_data_i           (uc_data_amo_write_data),
         .uc_data_amo_write_be_i             (uc_data_amo_write_be),
         .uc_core_rsp_ready_o                (uc_core_rsp_ready),
@@ -667,7 +665,6 @@ import hpdcache_pkg::*;
         .cmo_dir_updt_wback_i               (cmo_dir_updt_wback),
         .cmo_dir_updt_dirty_i               (cmo_dir_updt_dirty),
         .cmo_dir_updt_fetch_i               (cmo_dir_updt_fetch),
-        .cmo_dir_updt_user_i                (cmo_dir_updt_user),
         .cmo_dir_updt_tag_i                 (cmo_dir_updt_tag),
         .cmo_core_rsp_ready_o               (cmo_core_rsp_ready),
         .cmo_core_rsp_valid_i               (cmo_core_rsp_valid),
@@ -838,6 +835,7 @@ import hpdcache_pkg::*;
         .refill_dir_entry_o                 (refill_dir_entry),
         .refill_write_dir_o                 (refill_write_dir),
         .refill_write_data_o                (refill_write_data),
+        .refill_user_o                      (refill_user),
         .refill_data_o                      (refill_data),
         .refill_word_o                      (refill_word),
         .refill_nline_o                     (refill_nline),
@@ -875,6 +873,7 @@ import hpdcache_pkg::*;
         .hpdcache_req_addr_t           (hpdcache_req_addr_t),
         .hpdcache_req_tid_t            (hpdcache_req_tid_t),
         .hpdcache_req_sid_t            (hpdcache_req_sid_t),
+        .hpdcache_req_user_t           (hpdcache_req_user_t),
         .hpdcache_req_data_t           (hpdcache_req_data_t),
         .hpdcache_req_be_t             (hpdcache_req_be_t),
         .hpdcache_way_vector_t         (hpdcache_way_vector_t),
@@ -920,6 +919,7 @@ import hpdcache_pkg::*;
         .data_amo_write_set_o          (uc_data_amo_write_set),
         .data_amo_write_size_o         (uc_data_amo_write_size),
         .data_amo_write_word_o         (uc_data_amo_write_word),
+        .data_amo_write_user_o         (uc_data_amo_write_user),
         .data_amo_write_data_o         (uc_data_amo_write_data),
         .data_amo_write_be_o           (uc_data_amo_write_be),
 
