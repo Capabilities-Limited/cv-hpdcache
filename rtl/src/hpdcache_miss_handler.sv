@@ -632,7 +632,7 @@ import hpdcache_pkg::*;
         );
         hpdcache_mux #(
             .NINPUT      (REFILL_REQ_RATIO),
-            .DATA_WIDTH  (HPDcacheCfg.reqUserWidth)
+            .DATA_WIDTH  (HPDcacheCfg.u.reqWord*HPDcacheCfg.u.wordUserWidth)
         ) user_read_rsp_mux_i(
             .data_i      (refill_user),
             .sel_i       (refill_core_rsp_word[0 +: $clog2(REFILL_REQ_RATIO)]),

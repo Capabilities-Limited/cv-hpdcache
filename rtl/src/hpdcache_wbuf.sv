@@ -40,7 +40,7 @@ import hpdcache_pkg::*;
     parameter type hpdcache_mem_resp_w_t = logic,
 
     localparam int unsigned WBUF_WORD_WIDTH = HPDcacheCfg.u.reqWords*HPDcacheCfg.u.wordWidth,
-    localparam type wbuf_user_t = logic [HPDcacheCfg.u.reqUserWidth-1:0],
+    localparam type wbuf_user_t = logic [HPDcacheCfg.u.reqWords-1:0][HPDcacheCfg.u.wordUserWidth],
     localparam type wbuf_data_t = logic [WBUF_WORD_WIDTH-1:0],
     localparam type wbuf_be_t = logic [WBUF_WORD_WIDTH/8-1:0]
 )
