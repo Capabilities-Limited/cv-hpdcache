@@ -914,12 +914,15 @@ import hpdcache_pkg::*;
 
                                 end else begin
                                     // Update the directory state of the cacheline to dirty
-                                    st2_dir_updt_o       = 1'b1;
-                                    st2_dir_updt_valid_o = 1'b1;
-                                    st2_dir_updt_wback_o = 1'b1;
-                                    st2_dir_updt_dirty_o = 1'b1;
-                                    st2_dir_updt_fetch_o = 1'b0;
-                                    st1_nop = 1'b1;
+                                    if (!st1_dir_hit_wback_i || !st1_dir_hit_dirty_i) begin
+                                        st2_dir_updt_o       = 1'b1;
+                                        st2_dir_updt_valid_o = 1'b1;
+                                        st2_dir_updt_wback_o = 1'b1;
+                                        st2_dir_updt_dirty_o = 1'b1;
+                                        st2_dir_updt_fetch_o = 1'b0;
+
+                                        st1_nop = 1'b1;
+                                    end
 
                                     //  If the request comes from the replay table, free the
                                     //  corresponding RTAB entry
