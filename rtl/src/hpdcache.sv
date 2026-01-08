@@ -1341,9 +1341,6 @@ import hpdcache_pkg::*;
     if (HPDcacheCfg.clWidth < HPDcacheCfg.u.memDataWidth) begin : gen_cacheline_mem_data_assertion
         $fatal(1, "cacheline width shall be g.e. to memory interface data width");
     end
-    if (HPDcacheCfg.u.memDataWidth < HPDcacheCfg.reqDataWidth) begin : gen_mem_data_width_assertion
-        $fatal(1, "memory interface data width shall be g.e. to req data width");
-    end
     if ((2**HPDcacheCfg.u.memIdWidth - 1) < (HPDcacheCfg.u.mshrWays * HPDcacheCfg.u.mshrSets))
     begin : gen_mem_id_mshr_width_assertion
         $fatal(1, "insufficient ID bits on the mem interface to transport reads");
