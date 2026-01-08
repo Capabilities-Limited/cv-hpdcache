@@ -917,7 +917,6 @@ import hpdcache_pkg::*;
                 data_write_data   = data_refill_data_i;
                 data_write_be     = '1;
 
-                user_addr         = data_refill_set_i;
                 user_watomenable  = {HPDcacheCfg.u.ways{HPDcacheCfg.u.clWords'(1) << data_refill_word_i}};
                 user_wentry       = {HPDcacheCfg.u.ways{cl_user_from_access_user(data_refill_user_i, data_refill_word_i)}};
             end
@@ -931,7 +930,6 @@ import hpdcache_pkg::*;
                 data_write_data   = data_req_write_data;
                 data_write_be     = data_req_write_be;
 
-                user_addr         = data_req_write_set_i;
                 user_watomenable  = {HPDcacheCfg.u.ways{user_enable_from_byte_enable(data_req_write_be, data_req_write_word_i)}};
                 user_wentry       = {HPDcacheCfg.u.ways{cl_user_from_req_user(data_req_write_user_i, data_req_write_word_i)}};
             end
@@ -945,7 +943,6 @@ import hpdcache_pkg::*;
                 data_write_data   = data_amo_write_data;
                 data_write_be     = data_amo_write_be;
 
-                user_addr         = data_amo_write_set_i;
                 user_watomenable  = {HPDcacheCfg.u.ways{user_enable_from_byte_enable(data_amo_write_be, data_amo_write_word_i)}};
                 user_wentry       = {HPDcacheCfg.u.ways{cl_user_from_req_user(data_amo_write_user_i, data_amo_write_word_i)}};
             end
@@ -1022,6 +1019,11 @@ import hpdcache_pkg::*;
     assign data_ram_row = hpdcache_way_to_data_ram_row(data_way);
     assign user_cs = (data_req_read_i || data_flush_read_i) ? ~0 : data_way;
     assign user_we = (data_write) ? data_way : '0;
+    assign user_addr = data_refill_i     ?     data_refill_set_i :
+                       data_flush_read_i ? data_flush_read_set_i :
+                       data_amo_write_i  ?  data_amo_write_set_i :
+                       data_req_read_i   ?   data_req_read_set_i :
+                       /*data_req_write_i*/ data_req_write_set_i ;
 
     //  Word selection
     hpdcache_data_row_enable_t word_sel_req_rd, word_sel_req_wr;
@@ -1051,7 +1053,6 @@ import hpdcache_pkg::*;
             for (int unsigned j = 0; j < HPDCACHE_DATA_RAM_X_CUTS; j++) begin
                 data_addr[i][j] = data_write && word_sel_wr[j] ? __data_wr_addr : __data_rd_addr;
             end
-            user_addr = data_read_set;
         end
     end
 
