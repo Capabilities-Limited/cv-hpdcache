@@ -137,6 +137,8 @@ import hpdcache_pkg::*;
 //  {{{
     localparam hpdcache_uint MEM_REQ_RATIO = HPDcacheCfg.u.memDataWidth/HPDcacheCfg.reqDataWidth;
     localparam hpdcache_uint MEM_REQ_WORD_INDEX_WIDTH = $clog2(MEM_REQ_RATIO);
+    localparam hpdcache_uint REQ_MEM_RATIO = HPDcacheCfg.reqDataWidth/HPDcacheCfg.u.memDataWidth;
+    localparam hpdcache_uint REQ_MEM_WORD_INDEX_WIDTH = $clog2(REQ_MEM_RATIO);
 
     typedef enum {
         UC_IDLE,
@@ -786,7 +788,12 @@ import hpdcache_pkg::*;
             .data_o      (mem_req_write_data_o.mem_req_w_be)
         );
     end
-
+    //  the core's interface is bigger than the memory data width
+    else if (REQ_MEM_RATIO > 1) begin : gen_downsize_mem_req_data
+        // TODO assert that $countones(mem_req_write_data_o.mem_req_w_be) <= HPDcacheCfg.u.memDataWidth/8
+        assign mem_req_write_data_o.mem_req_w_data = mem_req_write_data >> (req_addr_q[$clog2(HPDcacheCfg.u.memDataWidth/8) +: REQ_MEM_WORD_INDEX_WIDTH] * HPDcacheCfg.u.memDataWidth);
+        assign mem_req_write_data_o.mem_req_w_be   = req_be_q >> (req_addr_q[$clog2(HPDcacheCfg.u.memDataWidth/8) +: REQ_MEM_WORD_INDEX_WIDTH] * (HPDcacheCfg.u.memDataWidth/8));
+    end
     //  memory data width is equal to the width of the core's interface
     else begin : gen_eqsize_mem_req_data
         assign mem_req_write_data_o.mem_req_w_data = mem_req_write_data;
@@ -832,7 +839,7 @@ import hpdcache_pkg::*;
 
     //  memory data width is equal to the width of the core's interface
     else begin : gen_eqsize_core_rsp_data
-        assign rsp_rdata_d = mem_resp_read_i.mem_resp_r_data;
+        assign rsp_rdata_d = {REQ_MEM_RATIO{mem_resp_read_i.mem_resp_r_data}};
     end
 
     //  This FSM is always ready to accept the response
