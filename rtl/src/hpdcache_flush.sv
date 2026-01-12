@@ -314,6 +314,7 @@ import hpdcache_pkg::*;
     //
     localparam hpdcache_uint32 MemReqFlits = HPDcacheCfg.u.memDataWidth < HPDcacheCfg.clWidth ?
         (HPDcacheCfg.clWidth / HPDcacheCfg.u.memDataWidth) - 1 : 0;
+    localparam hpdcache_uint ACCESS_MEM_RATIO = hpdcache_ceil_div(HPDcacheCfg.accessWidth, HPDcacheCfg.u.memDataWidth);
 
     assign flush_mem_req_wmeta = '{
         mem_req_addr: {flush_alloc_nline_i, {HPDcacheCfg.clOffsetWidth{1'b0}} },
@@ -360,7 +361,7 @@ import hpdcache_pkg::*;
         .rlast_o        (/* open */)
     );
     hpdcache_data_resize #(
-        .WR_WIDTH       (HPDcacheCfg.u.wordUserWidth*HPDcacheCfg.u.accessWords),
+        .WR_WIDTH       (HPDcacheCfg.u.wordUserWidth*ACCESS_MEM_RATIO),
         .RD_WIDTH       (HPDcacheCfg.u.wordUserWidth*HPDcacheCfg.wordsPerMemFlit),
         .DEPTH          (HPDcacheCfg.u.flushFifoDepth) // XXX consider deriving from ratio to data width
     ) flush_user_resizer_i(
@@ -369,10 +370,10 @@ import hpdcache_pkg::*;
 
         .w_i            (flush_resizer_w),
         .wok_o          (/* synced with data signals */),
-        .wdata_i        (flush_data_read_user_i),
+        .wdata_i        ({ACCESS_MEM_RATIO{flush_data_read_user_i}}),
         .wlast_i        (flush_resizer_wlast),
 
-        .r_i            (flush_mem_req_deq_user && mem_req_write_data_ready_i),
+        .r_i            (mem_req_write_data_ready_i),
         .rok_o          (/* synced with data signals */),
         .rdata_o        (flush_mem_req_ruser),
         .rlast_o        (/* open */)
@@ -383,9 +384,6 @@ import hpdcache_pkg::*;
     hpdcache_mem_len_t write_flits_cnt_q;
 
     assign flush_mem_req_rlast = (hpdcache_uint32'(write_flits_cnt_q) == MemReqFlits);
-
-    assign flush_mem_req_deq_user = (MemFlitPerAccess <= 1) ? 1'b1
-                                                            : ($clog2(MemFlitPerAccess)'(~0) == write_flits_cnt_q[$clog2(MemFlitPerAccess)-1:0]) ;
 
     always_ff @(posedge clk_i or negedge rst_ni)
     begin

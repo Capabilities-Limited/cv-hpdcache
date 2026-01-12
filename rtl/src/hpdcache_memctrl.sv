@@ -374,8 +374,6 @@ import hpdcache_pkg::*;
 
     hpdcache_cl_user_t data_req_read_user_cl, data_flush_read_user_cl;
 
-    hpdcache_access_user_t data_flush_read_user_d, data_flush_read_user_q;
-
     hpdcache_data_addr_t                       data_addr;
     hpdcache_data_enable_t                     data_cs;
     hpdcache_data_enable_t                     data_we;
@@ -969,10 +967,11 @@ import hpdcache_pkg::*;
     end
 
     // latch requested word index
-    hpdcache_word_t data_req_read_word_q;
+    hpdcache_word_t data_req_read_word_q, data_flush_read_word_q;
     always_ff @(posedge clk_i)
     begin : data_req_read_word_ff
         data_req_read_word_q <= data_req_read_word_i;
+        data_flush_read_word_q <= data_flush_read_word_i;
     end
 
     //  Mux the data according to the access word
@@ -1082,7 +1081,7 @@ import hpdcache_pkg::*;
         .sel_i       (data_flush_read_way),
         .data_o      (data_flush_read_user_cl)
     );
-    assign data_flush_read_user_o = access_user_from_cl_user(data_flush_read_user_cl, data_flush_read_word_i);
+    assign data_flush_read_user_o = access_user_from_cl_user(data_flush_read_user_cl, data_flush_read_word_q);
     hpdcache_mux #(
         .NINPUT      (HPDcacheCfg.u.dataWaysPerRamWord),
         .DATA_WIDTH  (HPDcacheCfg.accessWidth),
