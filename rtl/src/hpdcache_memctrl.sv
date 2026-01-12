@@ -1220,7 +1220,7 @@ import hpdcache_pkg::*;
         .ONE_HOT_SEL (1'b1)
     ) user_read_flush_mux_way_i(
         .data_i      (user_rentry),
-        .sel_i       (data_flush_read_way),
+        .sel_i       (data_flush_read_way_i),
         .data_o      (data_flush_read_user_cl)
     );
     assign data_flush_read_user_o = access_user_from_cl_user(data_flush_read_user_cl, data_flush_read_word_q);
