@@ -1099,11 +1099,10 @@ import hpdcache_pkg::*;
     localparam int unsigned DATA_WORD_IDX_WIDTH =
             HPDCACHE_DATA_REQ_RATIO > 1 ?  $clog2(HPDCACHE_DATA_REQ_RATIO) : 1;
     // latch requested word index
-    hpdcache_word_t data_req_read_word_q, data_flush_read_word_q;
+    hpdcache_word_t data_req_read_word_q;
     always_ff @(posedge clk_i)
     begin : data_req_read_word_ff
         data_req_read_word_q <= data_req_read_word_i;
-        data_flush_read_word_q <= data_flush_read_word_i;
     end
 
     //  Mux the data according to the access word
@@ -1171,11 +1170,15 @@ import hpdcache_pkg::*;
     hpdcache_data_ram_row_idx_t                  data_flush_row_index_q;
     logic                                        data_flush_read_q;
     logic [HPDcacheCfg.u.dataWaysPerRamWord-1:0] data_flush_read_way;
+    hpdcache_way_vector_t data_flush_read_way_q;
+    hpdcache_word_t data_flush_read_word_q;
 
     always_ff @(posedge clk_i)
     begin : data_flush_row_index_ff
         if (data_flush_read_i || (HPDcacheCfg.u.eccEn && data_err_read_i)) begin
             data_flush_row_index_q <= data_ram_row;
+            data_flush_read_way_q <= data_flush_read_way_i;
+            data_flush_read_word_q <= data_flush_read_word_i;
         end
         if (HPDcacheCfg.u.eccEn) begin
             data_flush_read_q <= data_flush_read_i;
@@ -1220,7 +1223,7 @@ import hpdcache_pkg::*;
         .ONE_HOT_SEL (1'b1)
     ) user_read_flush_mux_way_i(
         .data_i      (user_rentry),
-        .sel_i       (data_flush_read_way_i),
+        .sel_i       (data_flush_read_way_q),
         .data_o      (data_flush_read_user_cl)
     );
     assign data_flush_read_user_o = access_user_from_cl_user(data_flush_read_user_cl, data_flush_read_word_q);
