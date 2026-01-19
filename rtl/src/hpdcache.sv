@@ -255,6 +255,7 @@ import hpdcache_pkg::*;
     hpdcache_req_addr_t    uc_req_addr;
     hpdcache_req_size_t    uc_req_size;
     hpdcache_req_data_t    uc_req_data;
+    hpdcache_req_user_t    uc_req_user;
     hpdcache_req_be_t      uc_req_be;
     logic                  uc_req_uncacheable;
     hpdcache_req_sid_t     uc_req_sid;
@@ -597,6 +598,7 @@ import hpdcache_pkg::*;
         .uc_req_addr_o                      (uc_req_addr),
         .uc_req_size_o                      (uc_req_size),
         .uc_req_data_o                      (uc_req_data),
+        .uc_req_user_o                      (uc_req_user),
         .uc_req_be_o                        (uc_req_be),
         .uc_req_uc_o                        (uc_req_uncacheable),
         .uc_req_sid_o                       (uc_req_sid),
@@ -896,6 +898,7 @@ import hpdcache_pkg::*;
         .req_addr_i                    (uc_req_addr),
         .req_size_i                    (uc_req_size),
         .req_data_i                    (uc_req_data),
+        .req_user_i                    (uc_req_user),
         .req_be_i                      (uc_req_be),
         .req_uc_i                      (uc_req_uncacheable),
         .req_sid_i                     (uc_req_sid),

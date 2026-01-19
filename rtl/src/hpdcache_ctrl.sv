@@ -172,6 +172,7 @@ import hpdcache_pkg::*;
     output hpdcache_req_addr_t    uc_req_addr_o,
     output hpdcache_req_size_t    uc_req_size_o,
     output hpdcache_req_data_t    uc_req_data_o,
+    output hpdcache_req_user_t    uc_req_user_o,
     output hpdcache_req_be_t      uc_req_be_o,
     output logic                  uc_req_uc_o,
     output hpdcache_req_sid_t     uc_req_sid_o,
@@ -386,7 +387,6 @@ import hpdcache_pkg::*;
     hpdcache_word_t          st1_req_word;
     hpdcache_nline_t         st1_req_nline;
     hpdcache_req_addr_t      st1_req_addr;
-    hpdcache_access_user_t   st1_req_user;
     logic                    st1_victim_sel;
     logic                    st1_req_updt_sel_victim;
     logic                    st1_req_is_uncacheable;
@@ -961,7 +961,6 @@ import hpdcache_pkg::*;
                                                   HPDcacheCfg.clWordIdxWidth];
     assign st1_req_addr = {st1_req.req.addr_tag, st1_req.req.addr_offset};
     assign st1_req_nline = st1_req_addr[HPDcacheCfg.clOffsetWidth +: HPDcacheCfg.nlineWidth];
-    assign st1_req_user = st1_req.wuser;
 
     assign st1_victim_nline = {st1_dir_victim_tag, st1_req_set};
 
@@ -1179,6 +1178,7 @@ import hpdcache_pkg::*;
     assign uc_req_addr_o             = st1_req_addr;
     assign uc_req_size_o             = st1_req.req.size;
     assign uc_req_data_o             = st1_req.req.wdata;
+    assign uc_req_user_o             = st1_req.req.wuser;
     assign uc_req_be_o               = st1_req.req.be;
     assign uc_req_uc_o               = st1_req_is_uncacheable;
     assign uc_req_sid_o              = st1_req.req.sid;
