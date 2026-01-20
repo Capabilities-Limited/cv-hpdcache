@@ -774,7 +774,7 @@ import hpdcache_pkg::*;
 //  {{{
     always_comb
     begin : mem_req_write_comb
-        mem_req_write_data                = (uc_fsm_q inside {UC_MEM_WDATA2_REQ, UC_MEM_W_AND_WDATA2_REQ}) ? req_data_q[127:64] : req_data_q[63:0];
+        mem_req_write_data                = req_data_q;
         mem_req_write_user                = req_user_q;
         mem_req_write_o.mem_req_addr      = req_addr_q;
         mem_req_write_o.mem_req_len       = multiflit ? 1 : 0;
@@ -795,7 +795,7 @@ import hpdcache_pkg::*;
                 mem_req_write_o.mem_req_atomic  = HPDCACHE_MEM_ATOMIC_ADD;
             end
             req_op_q.is_amo_and: begin
-                mem_req_write_data              = ~req_data_q[63:0];
+                mem_req_write_data              = ~mem_req_write_data;
                 mem_req_write_o.mem_req_command = HPDCACHE_MEM_ATOMIC;
                 mem_req_write_o.mem_req_atomic  = HPDCACHE_MEM_ATOMIC_CLR;
             end
@@ -883,33 +883,33 @@ import hpdcache_pkg::*;
 
     //  memory data width is bigger than the width of the core's interface
     if (MEM_REQ_RATIO > 1) begin : gen_upsize_mem_req_data
-        //  replicate data
-        assign mem_req_write_data_o.mem_req_w_data = {MEM_REQ_RATIO{mem_req_write_data}};
-        assign mem_req_write_data_o.mem_req_w_user = mem_req_write_user;
+    //    //  replicate data
+    //    assign mem_req_write_data_o.mem_req_w_data = {MEM_REQ_RATIO{mem_req_write_data}};
+    //    assign mem_req_write_data_o.mem_req_w_user = mem_req_write_user;
 
-        //  demultiplex the byte-enable
-        hpdcache_demux #(
-            .NOUTPUT     (MEM_REQ_RATIO),
-            .DATA_WIDTH  (HPDcacheCfg.reqDataWidth/8)
-        ) mem_write_be_demux_i (
-            .data_i      (req_be_q),
-            .sel_i       (req_addr_q[$clog2(HPDcacheCfg.reqDataWidth/8) +:
-                                     MEM_REQ_WORD_INDEX_WIDTH]),
-            .data_o      (mem_req_write_data_o.mem_req_w_be)
-        );
+    //    //  demultiplex the byte-enable
+    //    hpdcache_demux #(
+    //        .NOUTPUT     (MEM_REQ_RATIO),
+    //        .DATA_WIDTH  (HPDcacheCfg.reqDataWidth/8)
+    //    ) mem_write_be_demux_i (
+    //        .data_i      (req_be_q),
+    //        .sel_i       (req_addr_q[$clog2(HPDcacheCfg.reqDataWidth/8) +:
+    //                                 MEM_REQ_WORD_INDEX_WIDTH]),
+    //        .data_o      (mem_req_write_data_o.mem_req_w_be)
+    //    );
     end
     //  the core's interface is bigger than the memory data width
     else if (REQ_MEM_RATIO > 1) begin : gen_downsize_mem_req_data
-        // TODO assert that $countones(mem_req_write_data_o.mem_req_w_be) <= HPDcacheCfg.u.memDataWidth/8
-        assign mem_req_write_data_o.mem_req_w_data = mem_req_write_data >> (req_addr_q[$clog2(HPDcacheCfg.u.memDataWidth/8) +: REQ_MEM_WORD_INDEX_WIDTH] * HPDcacheCfg.u.memDataWidth);
-        assign mem_req_write_data_o.mem_req_w_be   = req_be_q >> (req_addr_q[$clog2(HPDcacheCfg.u.memDataWidth/8) +: REQ_MEM_WORD_INDEX_WIDTH] * (HPDcacheCfg.u.memDataWidth/8));
+        automatic hpdcache_req_addr_t effective_addr = req_addr_q + (uc_fsm_q inside {UC_MEM_WDATA2_REQ, UC_MEM_W_AND_WDATA2_REQ} ? 'h8 : 'h0);
+        assign mem_req_write_data_o.mem_req_w_data = mem_req_write_data >> (effective_addr[$clog2(HPDcacheCfg.u.memDataWidth/8) +: REQ_MEM_WORD_INDEX_WIDTH] * HPDcacheCfg.u.memDataWidth);
+        assign mem_req_write_data_o.mem_req_w_be   = req_be_q >> (effective_addr[$clog2(HPDcacheCfg.u.memDataWidth/8) +: REQ_MEM_WORD_INDEX_WIDTH] * (HPDcacheCfg.u.memDataWidth/8));
         assign mem_req_write_data_o.mem_req_w_user = mem_req_write_user;
     end
     //  memory data width is equal to the width of the core's interface
     else begin : gen_eqsize_mem_req_data
-        assign mem_req_write_data_o.mem_req_w_data = mem_req_write_data;
-        assign mem_req_write_data_o.mem_req_w_be   = req_be_q;
-        assign mem_req_write_data_o.mem_req_w_user = mem_req_write_user;
+        //assign mem_req_write_data_o.mem_req_w_data = mem_req_write_data;
+        //assign mem_req_write_data_o.mem_req_w_be   = req_be_q;
+        //assign mem_req_write_data_o.mem_req_w_user = mem_req_write_user;
     end
 
     assign mem_req_write_data_o.mem_req_w_last = !multiflit || uc_fsm_q inside {UC_MEM_WDATA2_REQ, UC_MEM_W_AND_WDATA2_REQ};
