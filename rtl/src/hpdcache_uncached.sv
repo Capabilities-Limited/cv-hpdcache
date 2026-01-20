@@ -205,7 +205,7 @@ import hpdcache_pkg::*;
             automatic logic[15:0][7:0] bytes;
             automatic logic[7:0] shifted_byte;
             for (int i = 0; i < 16; i = i+1) begin
-                bytes[i] = data_i[i*16+:16];
+                bytes[i] = data_i[i*8+:8];
             end
             shifted_byte = bytes[addr_i[3:0]];
             return {{65{1'b0}}, {56{sign_extend_i & shifted_byte[7]}}, shifted_byte};
