@@ -68,6 +68,7 @@ import hpdcache_pkg::*;
     input  logic                   st1_req_is_load_i,
     input  logic                   st1_req_is_store_i,
     input  logic                   st1_req_is_amo_i,
+    input  logic                   st1_req_is_amo_lr_i,
     input  logic                   st1_req_is_cmo_inval_i,
     input  logic                   st1_req_is_cmo_flush_i,
     input  logic                   st1_req_is_cmo_fence_i,
@@ -597,8 +598,11 @@ import hpdcache_pkg::*;
                                 //  An AMO does not set the dirty bit because it is always forwarded
                                 //  to the memory. Then the local copy is updated with respect
                                 //  to the old data from the memory.
+                                //  For CHERI, if we're doing an LR, we currently need to invalidate
+                                //  the line, as when we bring in the read from memory we don't know
+                                //  whether to clear the tag or not
                                 st2_dir_updt_o = 1'b1;
-                                st2_dir_updt_valid_o = 1'b1;
+                                st2_dir_updt_valid_o = !st1_req_is_amo_lr_i;
                                 st2_dir_updt_wback_o = st1_dir_hit_wback_i;
                                 st2_dir_updt_dirty_o = 1'b0;
 
