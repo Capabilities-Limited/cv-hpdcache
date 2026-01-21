@@ -900,9 +900,10 @@ import hpdcache_pkg::*;
     end
     //  the core's interface is bigger than the memory data width
     else if (REQ_MEM_RATIO > 1) begin : gen_downsize_mem_req_data
-        automatic hpdcache_req_addr_t effective_addr = req_addr_q + (uc_fsm_q inside {UC_MEM_WDATA2_REQ, UC_MEM_W_AND_WDATA2_REQ} ? 'h8 : 'h0);
-        assign mem_req_write_data_o.mem_req_w_data = mem_req_write_data >> (effective_addr[$clog2(HPDcacheCfg.u.memDataWidth/8) +: REQ_MEM_WORD_INDEX_WIDTH] * HPDcacheCfg.u.memDataWidth);
-        assign mem_req_write_data_o.mem_req_w_be   = req_be_q >> (effective_addr[$clog2(HPDcacheCfg.u.memDataWidth/8) +: REQ_MEM_WORD_INDEX_WIDTH] * (HPDcacheCfg.u.memDataWidth/8));
+        hpdcache_req_addr_t flit_addr;
+        assign flit_addr = req_addr_q + (uc_fsm_q inside {UC_MEM_WDATA2_REQ, UC_MEM_W_AND_WDATA2_REQ} ? 'h8 : 'h0);
+        assign mem_req_write_data_o.mem_req_w_data = mem_req_write_data >> (flit_addr[$clog2(HPDcacheCfg.u.memDataWidth/8) +: REQ_MEM_WORD_INDEX_WIDTH] * HPDcacheCfg.u.memDataWidth);
+        assign mem_req_write_data_o.mem_req_w_be   = req_be_q >> (flit_addr[$clog2(HPDcacheCfg.u.memDataWidth/8) +: REQ_MEM_WORD_INDEX_WIDTH] * (HPDcacheCfg.u.memDataWidth/8));
         assign mem_req_write_data_o.mem_req_w_user = mem_req_write_user;
     end
     //  memory data width is equal to the width of the core's interface
