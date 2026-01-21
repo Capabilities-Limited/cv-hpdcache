@@ -595,6 +595,7 @@ import hpdcache_pkg::*;
         .st1_req_is_load_i                  (st1_req_is_load),
         .st1_req_is_store_i                 (st1_req_is_store),
         .st1_req_is_amo_i                   (st1_req_is_amo),
+        .st1_req_is_amo_lr_i                (st1_req_is_amo_lr),
         .st1_req_is_cmo_inval_i             (st1_req_is_cmo_inval),
         .st1_req_is_cmo_flush_i             (st1_req_is_cmo_flush),
         .st1_req_is_cmo_fence_i             (st1_req_is_cmo_fence),
