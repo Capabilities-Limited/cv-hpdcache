@@ -55,7 +55,7 @@ module hpdcache_fxarb
 
     //  Compute the output grant vector
     //  {{{
-    assign gnt_o = wait_q ? gnt_q : gnt;
+    assign gnt_o = req_i & (wait_q ? gnt_q : gnt);
     //  }}}
 
     //  Setting of internal state
@@ -66,7 +66,7 @@ module hpdcache_fxarb
             wait_q <= 1'b0;
             gnt_q  <= '0;
         end else begin
-            wait_q <= ~ready_i & (wait_q | (|req_i));
+            wait_q <= ~ready_i & (wait_q | (|req_i)) & ((gnt_q & req_i) != 0);
             if (!ready_i && !wait_q && (|req_i)) begin
                 gnt_q <= gnt;
             end
@@ -79,6 +79,8 @@ module hpdcache_fxarb
 `ifndef HPDCACHE_ASSERT_OFF
     gnt_at_most_one_requester: assert property (@(posedge clk_i) disable iff (rst_ni !== 1'b1)
             $onehot0(gnt_o)) else $error("arbiter: granting more than one requester");
+    gnt_only_if_req: assert property (@(posedge clk_i) disable iff (rst_ni !== 1'b1)
+            (gnt_o & req_i) == gnt_o) else $error("arbiter: gnt without req");
 `endif
     //  }}}
 
