@@ -169,8 +169,8 @@ import hpdcache_pkg::*;
     localparam logic AMO_SC_SUCCESS = 1'b0;
     localparam logic AMO_SC_FAILURE = 1'b1;
 
-    function automatic logic [128:0] prepare_amo_data_operand(
-            input logic [128:0]       data_i,
+    function automatic logic [127:0] prepare_amo_data_operand(
+            input logic [127:0]       data_i,
             input hpdcache_req_size_t size_i,
             input hpdcache_req_addr_t addr_i,
             input logic               sign_extend_i
@@ -188,7 +188,7 @@ import hpdcache_pkg::*;
                 dwords[i] = data_i[i*64+:64];
             end
             shifted_dword = dwords[addr_i[3]];
-            return {{65{1'b0}}, shifted_dword};
+            return {{64{1'b0}}, shifted_dword};
         end
 
         // 32-bits AMOs
@@ -199,7 +199,7 @@ import hpdcache_pkg::*;
                 words[i] = data_i[i*32+:32];
             end
             shifted_word = words[addr_i[3:2]];
-            return {{65{1'b0}}, {32{sign_extend_i & shifted_word[31]}}, shifted_word};
+            return {{64{1'b0}}, {32{sign_extend_i & shifted_word[31]}}, shifted_word};
         end
 
         // 16-bits AMOs
@@ -210,7 +210,7 @@ import hpdcache_pkg::*;
                 hwords[i] = data_i[i*16+:16];
             end
             shifted_hword = hwords[addr_i[3:1]];
-            return {{65{1'b0}}, {48{sign_extend_i & shifted_hword[15]}}, shifted_hword};
+            return {{64{1'b0}}, {48{sign_extend_i & shifted_hword[15]}}, shifted_hword};
         end
 
         // 8-bits AMOs
@@ -221,12 +221,12 @@ import hpdcache_pkg::*;
                 bytes[i] = data_i[i*8+:8];
             end
             shifted_byte = bytes[addr_i[3:0]];
-            return {{65{1'b0}}, {56{sign_extend_i & shifted_byte[7]}}, shifted_byte};
+            return {{64{1'b0}}, {56{sign_extend_i & shifted_byte[7]}}, shifted_byte};
         end
     endfunction;
 
-    function automatic logic [128:0] prepare_amo_data_result(
-            input logic [128:0]       data_i,
+    function automatic logic [127:0] prepare_amo_data_result(
+            input logic [127:0]       data_i,
             input hpdcache_req_size_t size_i
     );
         // 128-bits AMOs are already aligned, thus do nothing
@@ -236,22 +236,22 @@ import hpdcache_pkg::*;
 
         // 64-bits AMOs
         else if (size_i == hpdcache_req_size_t'(3)) begin
-            return {1'b0, {2{data_i[63:0]}}};
+            return {2{data_i[63:0]}};
         end
 
         // 32-bits AMOs
         else if (size_i == hpdcache_req_size_t'(2)) begin
-            return {1'b0, {4{data_i[31:0]}}};
+            return {4{data_i[31:0]}};
         end
 
         // 16-bits AMOs
         else if (size_i == hpdcache_req_size_t'(1)) begin
-            return {1'b0, {8{data_i[15:0]}}};
+            return {8{data_i[15:0]}};
         end
 
         // 8-bits AMOs
         else begin
-            return {1'b0, {16{data_i[7:0]}}};
+            return {16{data_i[7:0]}};
         end
     endfunction;
 
@@ -294,12 +294,13 @@ import hpdcache_pkg::*;
 
     hpdcache_req_data_t   mem_req_write_data;
     hpdcache_req_user_t   mem_req_write_user;
-    logic [128:0]         amo_req_ld_data;
-    logic [128:0]         amo_ld_data;
-    logic [128:0]         amo_req_st_data;
-    logic [128:0]         amo_st_data;
-    logic [128:0]         amo_result;
-    logic [128:0]         amo_write_data;
+    logic [127:0]         amo_req_ld_data;
+    logic [127:0]         amo_ld_data;
+    logic [127:0]         amo_req_st_data;
+    logic [127:0]         amo_st_data;
+    logic [127:0]         amo_result;
+    logic                 amo_user;
+    logic [127:0]         amo_write_data;
 //  }}}
 
 //  LR/SC reservation buffer logic
@@ -696,8 +697,10 @@ import hpdcache_pkg::*;
     //        .data_o         (amo_req_st_data[128])
     //    );
     end else if (HPDcacheCfg.reqDataWidth == 128) begin : gen_amo_data_width_eq_128
-        assign amo_req_ld_data = {rsp_ruser_q, rsp_rdata_q};
-        assign amo_req_st_data = {req_user_q, req_data_q};
+        //assign amo_req_ld_data = {rsp_ruser_q, rsp_rdata_q};
+        assign amo_req_ld_data = rsp_rdata_q;
+        //assign amo_req_st_data = {req_user_q, req_data_q};
+        assign amo_req_st_data = req_data_q;
     end else begin : gen_amo_data_width_eq_64
         //assign amo_req_ld_data = {1'b0, rsp_rdata_q[0], rsp_rdata_q[0]};
         //assign amo_req_st_data = {1'b0, req_data_q, req_data_q};
@@ -708,11 +711,18 @@ import hpdcache_pkg::*;
     assign amo_st_data = prepare_amo_data_operand(amo_req_st_data, req_size_q,
             req_addr_q, amo_need_sign_extend(req_op_q));
 
-    hpdcache_amo amo_unit_i (
-        .ld_data_i           (amo_ld_data),
-        .st_data_i           (amo_st_data),
-        .op_i                (req_op_q),
-        .result_o            (amo_result)
+    hpdcache_amo #(
+        .DATA_WIDTH  (128),
+        .ARITH_WIDTH (64),
+        .user_t      (hpdcache_req_user_t)
+    ) amo_unit_i (
+        .ld_data_i   (amo_ld_data),
+        .ld_user_i   (rsp_ruser_q),
+        .st_data_i   (amo_st_data),
+        .st_user_i   (req_user_q),
+        .op_i        (req_op_q),
+        .result_o    (amo_result),
+        .user_o      (amo_user)
     );
 
     assign data_amo_write_o = (uc_fsm_q == UC_AMO_WRITE_DATA);
@@ -728,11 +738,11 @@ import hpdcache_pkg::*;
     //if (HPDcacheCfg.reqDataWidth >= 64) begin : gen_amo_ram_write_data_ge_64
     //    assign data_amo_write_data_o = {HPDcacheCfg.reqDataWidth/64{amo_write_data}};
     //end else begin : gen_amo_ram_write_data_lt_64
-        assign data_amo_write_data_o = amo_write_data[127:0];
+        assign data_amo_write_data_o = amo_write_data;
     //end
     // XXX TODO implement user bits on amo,
     // probably as a function of req_data_i and mem_resp_read_i.mem_resp_r_data
-    assign data_amo_write_user_o = amo_write_data[128];
+    assign data_amo_write_user_o = amo_user;
     // XXX TODO
 //  }}}
 
