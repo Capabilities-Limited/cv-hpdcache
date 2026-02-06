@@ -26,29 +26,37 @@
  */
 module hpdcache_amo
 import hpdcache_pkg::*;
+#(
+    parameter int unsigned DATA_WIDTH = 64,
+    parameter int unsigned ARITH_WIDTH = DATA_WIDTH,
+    parameter type user_t = logic
+)
 //  Ports
 //  {{{
 (
-    input  logic [128:0]          ld_data_i,
-    input  logic [128:0]          st_data_i,
+    input  logic [DATA_WIDTH-1:0] ld_data_i,
+    input  user_t                 ld_user_i,
+    input  logic [DATA_WIDTH-1:0] st_data_i,
+    input  user_t                 st_user_i,
     input  hpdcache_uc_op_t       op_i,
-    output logic [128:0]          result_o
+    output logic [DATA_WIDTH-1:0] result_o,
+    output user_t                 user_o
 );
 //  }}}
 
-    logic signed [63:0] ld_data_signed;
-    logic signed [63:0] st_data_signed;
-    logic signed [63:0] sum;
-    logic        [63:0] ld_data_unsigned;
-    logic        [63:0] st_data_unsigned;
-    logic        [63:0] result;
-    logic        [64:0] result_hi;
-    logic               ugt, sgt;
+    logic signed [ARITH_WIDTH-1:0] ld_data_signed;
+    logic signed [ARITH_WIDTH-1:0] st_data_signed;
+    logic signed [ARITH_WIDTH-1:0] sum;
+    logic        [ARITH_WIDTH-1:0] ld_data_unsigned;
+    logic        [ARITH_WIDTH-1:0] st_data_unsigned;
+    logic        [ARITH_WIDTH-1:0] result;
+    logic        [ARITH_WIDTH-1:0] result_hi;
+    logic ugt, sgt;
 
-    assign ld_data_signed = ld_data_i[63:0],
-           st_data_signed = st_data_i[63:0],
-           ld_data_unsigned = ld_data_i[63:0],
-           st_data_unsigned = st_data_i[63:0];
+    assign ld_data_signed = ld_data_i[ARITH_WIDTH-1:0],
+           st_data_signed = st_data_i[ARITH_WIDTH-1:0],
+           ld_data_unsigned = ld_data_i[ARITH_WIDTH-1:0],
+           st_data_unsigned = st_data_i[ARITH_WIDTH-1:0];
 
     assign ugt = (ld_data_unsigned > st_data_unsigned),
            sgt = (ld_data_signed   > st_data_signed),
@@ -71,11 +79,28 @@ import hpdcache_pkg::*;
             default          : result = '0;
         endcase
         unique case (1'b1)
-            op_i.is_amo_lr   : result_hi = ld_data_i[128:64];
-            op_i.is_amo_sc   : result_hi = st_data_i[128:64];
-            op_i.is_amo_swap : result_hi = st_data_i[128:64];
+            op_i.is_amo_lr   : result_hi = ld_data_i[DATA_WIDTH-1:ARITH_WIDTH];
+            op_i.is_amo_sc   : result_hi = st_data_i[DATA_WIDTH-1:ARITH_WIDTH];
+            op_i.is_amo_swap : result_hi = st_data_i[DATA_WIDTH-1:ARITH_WIDTH];
             default          : result_hi = '0;
         endcase
         result_o = {result_hi, result};
+        unique case (1'b1)
+            op_i.is_amo_lr   : user_o = ld_user_i;
+            default          : user_o = st_user_i;
+        endcase
     end
+
+//  Assertions
+//  {{{
+`ifndef HPDCACHE_ASSERT_OFF
+    initial
+    begin : initial_assertions
+        assert (DATA_WIDTH >= ARITH_WIDTH) else
+            $error( "hpdcache_amo: DATA_WIDTH (%0d) must be greater than or equal to ARITH_WIDTH (%0d)"
+                  , DATA_WIDTH, ARITH_WIDTH );
+    end
+`endif
+//  }}}
+
 endmodule
