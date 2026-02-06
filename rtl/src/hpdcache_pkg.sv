@@ -391,6 +391,8 @@ package hpdcache_pkg;
         int unsigned wordWidth;
         //  Word user width (bits)
         int unsigned wordUserWidth;
+        //  AMO artihmetic width (bits)
+        int unsigned AMOArithWidth;
         //  Number of sets
         int unsigned sets;
         //  Number of ways
