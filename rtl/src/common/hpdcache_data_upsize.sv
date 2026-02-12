@@ -32,6 +32,7 @@ import hpdcache_pkg::*;
     parameter int WR_WIDTH = 0,
     parameter int RD_WIDTH = 0,
     parameter int DEPTH    = 0,
+    parameter bit REPEATER = 1'b0,
 
     localparam type wdata_t = logic [WR_WIDTH-1:0],
     localparam type rdata_t = logic [RD_WIDTH-1:0]
@@ -160,7 +161,23 @@ import hpdcache_pkg::*;
         end
     end
 
-    assign rdata_o = buf_q[rdptr_q];
+    generate
+      if (REPEATER) begin : gen_repeater_logic
+        always_comb begin
+          automatic int count = hpdcache_uint'(words_q[rdptr_q]);
+          logic [WORDCNT_WIDTH-1:0] mask;
+          mask = '0;
+          for (int i = 0; i < WORDCNT_WIDTH; i++) begin
+            if (count > (1 << i)) mask[i] = 1'b1;
+          end
+          for (int i = 0; i < WR_WORDS; i++) begin
+            rdata_o[i*WR_WIDTH +: WR_WIDTH] = buf_q[rdptr_q][i & mask];
+          end
+        end
+      end else begin : gen_standard_logic
+        assign rdata_o = buf_q[rdptr_q];
+      end
+    endgenerate
     //  }}}
 
     //  Assertions

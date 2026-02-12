@@ -32,6 +32,7 @@ import hpdcache_pkg::*;
     parameter int WR_WIDTH = 0,
     parameter int RD_WIDTH = 0,
     parameter int DEPTH    = 0,
+    parameter bit REPEATER = 0,
 
     localparam type wdata_t = logic [WR_WIDTH-1:0],
     localparam type rdata_t = logic [RD_WIDTH-1:0]
@@ -61,7 +62,8 @@ if (WR_WIDTH < RD_WIDTH) begin : gen_upsize
     hpdcache_data_upsize #(
         .WR_WIDTH       (WR_WIDTH),
         .RD_WIDTH       (RD_WIDTH),
-        .DEPTH          (DEPTH)
+        .DEPTH          (DEPTH),
+        .REPEATER       (REPEATER)
     ) upsizer_i(
         .clk_i,
         .rst_ni,
