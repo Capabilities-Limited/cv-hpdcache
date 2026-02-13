@@ -284,6 +284,22 @@ import hpdcache_pkg::*;
             default      : return 1'b0;
         endcase;
     endfunction
+
+    function automatic hpdcache_req_user_t and_reduce_user (
+        input hpdcache_req_user_t [REQ_MEM_RATIO-1:0] user
+    );
+        hpdcache_req_user_t result;
+        int i, j, k;
+        result = ~0;
+        for (k = 0; k < REQ_MEM_RATIO; k++) begin
+            for (j = 0; j < HPDcacheCfg.u.reqWords; j++) begin
+                for (i = 0; i < HPDcacheCfg.u.wordUserWidth; i++) begin
+                    result[j][i] &= user[k][j][i];
+                end
+            end
+        end
+        return result;
+    endfunction
 //  }}}
 
 //  Internal signals and registers
@@ -304,20 +320,17 @@ import hpdcache_pkg::*;
 
     logic               uc_sc_retcode_q, uc_sc_retcode_d;
 
-    hpdcache_req_data_t rsp_rdata_q, rsp_rdata_d;
-    hpdcache_req_user_t rsp_ruser_q, rsp_ruser_d;
+    hpdcache_req_data_t rsp_rdata;
+    hpdcache_req_user_t rsp_ruser;
+
     logic               rsp_error_set, rsp_error_rst;
     logic               rsp_error_q;
     logic               mem_resp_write_valid_q, mem_resp_write_valid_d;
-    logic               mem_resp_read_valid_q, mem_resp_read_valid_d;
+    logic               mem_resp_read_valid, mem_resp_read_last;
     logic               mem_resp_read_finishing;
 
     hpdcache_req_data_t mem_req_write_data;
     hpdcache_req_user_t mem_req_write_user;
-    hpdcache_req_data_t amo_req_ld_data;
-    hpdcache_req_data_t amo_ld_data;
-    hpdcache_req_data_t amo_req_st_data;
-    hpdcache_req_data_t amo_st_data;
     hpdcache_req_data_t amo_result;
     logic               amo_user;
     hpdcache_req_data_t amo_write_data;
@@ -376,14 +389,13 @@ import hpdcache_pkg::*;
                            flush_empty_i;
 
     assign multiflit = req_size_q == hpdcache_req_size_t'(4);
-    assign mem_resp_read_finishing = mem_resp_read_valid_i && mem_resp_read_i.mem_resp_r_last;
+    assign mem_resp_read_finishing = mem_resp_read_valid && mem_resp_read_last;
 
 //  Uncacheable request FSM
 //  {{{
     always_comb
     begin : uc_fsm_comb
         mem_resp_write_valid_d = mem_resp_write_valid_q;
-        mem_resp_read_valid_d  = mem_resp_read_valid_q;
         rsp_error_set          = 1'b0;
         rsp_error_rst          = 1'b0;
         lrsc_rsrv_addr_d       = lrsc_rsrv_addr_q;
@@ -489,7 +501,6 @@ import hpdcache_pkg::*;
                 uc_fsm_d = UC_MEM_REQ;
 
                 mem_resp_write_valid_d = 1'b0;
-                mem_resp_read_valid_d  = 1'b0;
 
                 unique case (1'b1)
                     req_op_q.is_ld,
@@ -526,7 +537,6 @@ import hpdcache_pkg::*;
             //  {{{
             UC_MEM_W_REQ: begin
                 mem_resp_write_valid_d = mem_resp_write_valid_q | mem_resp_write_valid_i;
-                mem_resp_read_valid_d = mem_resp_read_valid_q | mem_resp_read_finishing;
 
                 if (mem_req_write_ready_i) begin
                     uc_fsm_d = UC_MEM_WAIT_RSP;
@@ -540,7 +550,6 @@ import hpdcache_pkg::*;
             //  {{{
             UC_MEM_W_AND_WDATA2_REQ: begin
                 mem_resp_write_valid_d = mem_resp_write_valid_q | mem_resp_write_valid_i;
-                mem_resp_read_valid_d = mem_resp_read_valid_q | mem_resp_read_finishing;
 
                 if (mem_req_write_ready_i && mem_req_write_data_ready_i) begin
                     uc_fsm_d = UC_MEM_WAIT_RSP;
@@ -558,7 +567,6 @@ import hpdcache_pkg::*;
             //  {{{
             UC_MEM_WDATA_REQ: begin
                 mem_resp_write_valid_d = mem_resp_write_valid_q | mem_resp_write_valid_i;
-                mem_resp_read_valid_d = mem_resp_read_valid_q | mem_resp_read_finishing;
 
                 if (mem_req_write_data_ready_i) begin
                     uc_fsm_d = multiflit ? UC_MEM_WDATA2_REQ : UC_MEM_WAIT_RSP;
@@ -571,7 +579,6 @@ import hpdcache_pkg::*;
             //  {{{
             UC_MEM_WDATA2_REQ: begin
                 mem_resp_write_valid_d = mem_resp_write_valid_q | mem_resp_write_valid_i;
-                mem_resp_read_valid_d = mem_resp_read_valid_q | mem_resp_read_finishing;
 
                 if (mem_req_write_data_ready_i) begin
                     uc_fsm_d = UC_MEM_WAIT_RSP;
@@ -589,7 +596,6 @@ import hpdcache_pkg::*;
 
                 uc_fsm_d = UC_MEM_WAIT_RSP;
                 mem_resp_write_valid_d = mem_resp_write_valid_q | mem_resp_write_valid_i;
-                mem_resp_read_valid_d = mem_resp_read_valid_q | mem_resp_read_finishing;
 
                 rd_error = mem_resp_read_finishing  &&
                            ( mem_resp_read_i.mem_resp_r_error == HPDCACHE_MEM_RESP_NOK);
@@ -663,7 +669,7 @@ import hpdcache_pkg::*;
                         //  wait for both old data and write acknowledged were received
                         if ((mem_resp_read_finishing && mem_resp_write_valid_i) ||
                             (mem_resp_read_finishing && mem_resp_write_valid_q) ||
-                            (mem_resp_read_valid_q && mem_resp_write_valid_i))
+                            (mem_resp_read_valid && mem_resp_write_valid_i))
                         begin
                             if (req_uc_q || rsp_error_q || rd_error || wr_error) begin
                                 uc_fsm_d = UC_CORE_RSP;
@@ -707,70 +713,17 @@ import hpdcache_pkg::*;
 
 //  AMO unit
 //  {{{
-    if (HPDcacheCfg.reqDataWidth > 128) begin : gen_amo_data_width_gt_128
-    //    localparam hpdcache_uint AMO_WORD_INDEX_WIDTH = $clog2(HPDcacheCfg.reqDataWidth/128);
-    //    hpdcache_mux #(
-    //        .NINPUT         (HPDcacheCfg.reqDataWidth/128),
-    //        .DATA_WIDTH     (128),
-    //        .ONE_HOT_SEL    (1'b0)
-    //    ) amo_ld_data_mux_i (
-    //        .data_i         (rsp_rdata_q),
-    //        .sel_i          (req_addr_q[4 +: AMO_WORD_INDEX_WIDTH]),
-    //        .data_o         (amo_req_ld_data[127:0])
-    //    );
-
-    //    hpdcache_mux #(
-    //        .NINPUT         (HPDcacheCfg.reqDataWidth/128),
-    //        .DATA_WIDTH     (1),
-    //        .ONE_HOT_SEL    (1'b0)
-    //    ) amo_ld_data_mux_i (
-    //        .data_i         (rsp_ruser_q),
-    //        .sel_i          (req_addr_q[4 +: AMO_WORD_INDEX_WIDTH]),
-    //        .data_o         (amo_req_ld_data[128])
-    //    );
-
-    //    hpdcache_mux #(
-    //        .NINPUT         (HPDcacheCfg.reqDataWidth/128),
-    //        .DATA_WIDTH     (128),
-    //        .ONE_HOT_SEL    (1'b0)
-    //    ) amo_st_data_mux_i (
-    //        .data_i         (req_data_q),
-    //        .sel_i          (req_addr_q[4 +: AMO_WORD_INDEX_WIDTH]),
-    //        .data_o         (amo_req_st_data[127:0])
-    //    );
-
-    //    hpdcache_mux #(
-    //        .NINPUT         (HPDcacheCfg.reqDataWidth/128),
-    //        .DATA_WIDTH     (1),
-    //        .ONE_HOT_SEL    (1'b0)
-    //    ) amo_ld_data_mux_i (
-    //        .data_i         (req_user_q),
-    //        .sel_i          (req_addr_q[4 +: AMO_WORD_INDEX_WIDTH]),
-    //        .data_o         (amo_req_st_data[128])
-    //    );
-    end else if (HPDcacheCfg.reqDataWidth == 128) begin : gen_amo_data_width_eq_128
-        //assign amo_req_ld_data = {rsp_ruser_q, rsp_rdata_q};
-        assign amo_req_ld_data = rsp_rdata_q;
-        //assign amo_req_st_data = {req_user_q, req_data_q};
-        assign amo_req_st_data = req_data_q;
-    end else begin : gen_amo_data_width_eq_64
-        //assign amo_req_ld_data = {1'b0, rsp_rdata_q[0], rsp_rdata_q[0]};
-        //assign amo_req_st_data = {1'b0, req_data_q, req_data_q};
-    end
-
-    assign amo_ld_data = prepare_amo_data_operand(amo_req_ld_data, req_size_q,
-            req_addr_q, amo_need_sign_extend(req_op_q));
-    assign amo_st_data = prepare_amo_data_operand(amo_req_st_data, req_size_q,
-            req_addr_q, amo_need_sign_extend(req_op_q));
 
     hpdcache_amo #(
         .DATA_WIDTH  ($bits(hpdcache_req_data_t)),
         .ARITH_WIDTH (HPDcacheCfg.u.AMOArithWidth),
         .user_t      (hpdcache_req_user_t)
     ) amo_unit_i (
-        .ld_data_i   (amo_ld_data),
-        .ld_user_i   (rsp_ruser_q),
-        .st_data_i   (amo_st_data),
+        .ld_data_i   (prepare_amo_data_operand( rsp_rdata, req_size_q
+                                              , req_addr_q, amo_need_sign_extend(req_op_q) )),
+        .ld_user_i   (rsp_ruser),
+        .st_data_i   (prepare_amo_data_operand( req_data_q, req_size_q
+                                              , req_addr_q, amo_need_sign_extend(req_op_q) )),
         .st_user_i   (req_user_q),
         .op_i        (req_op_q),
         .result_o    (amo_result),
@@ -792,21 +745,18 @@ import hpdcache_pkg::*;
     assign data_amo_write_be_o = req_be_q;
 
     assign amo_write_data = prepare_amo_data_result(amo_result, req_size_q);
-    //if (HPDcacheCfg.reqDataWidth >= 64) begin : gen_amo_ram_write_data_ge_64
-    //    assign data_amo_write_data_o = {HPDcacheCfg.reqDataWidth/64{amo_write_data}};
-    //end else begin : gen_amo_ram_write_data_lt_64
-        assign data_amo_write_data_o = amo_write_data;
-    //end
-    // XXX TODO implement user bits on amo,
-    // probably as a function of req_data_i and mem_resp_read_i.mem_resp_r_data
+    assign data_amo_write_data_o = amo_write_data;
     assign data_amo_write_user_o = amo_user;
-    // XXX TODO
+
 //  }}}
 
 //  Core response outputs
 //  {{{
     assign req_ready_o      = (uc_fsm_q ==     UC_IDLE),
            core_rsp_valid_o = (uc_fsm_q == UC_CORE_RSP);
+
+    logic mem_resp_resize_r_i;
+    assign mem_resp_resize_r_i = (uc_fsm_q == UC_CORE_RSP) && (core_rsp_ready_i) && (mem_resp_read_valid);
 //  }}}
 
 //  Memory read request outputs
@@ -997,47 +947,54 @@ import hpdcache_pkg::*;
         assign sc_rdata = sc_rdata_dword;
     end
 
-    assign core_rsp_o.rdata   = req_op_q.is_amo_sc ? sc_rdata : rsp_rdata_q;
-    assign core_rsp_o.ruser   = req_op_q.is_amo_sc ? 1'b0 : rsp_ruser_q;
+    assign core_rsp_o.rdata   = req_op_q.is_amo_sc ? sc_rdata : rsp_rdata;
+    assign core_rsp_o.ruser   = req_op_q.is_amo_sc ? 1'b0 : rsp_ruser;
     assign core_rsp_o.sid     = req_sid_q;
     assign core_rsp_o.tid     = req_tid_q;
     assign core_rsp_o.error   = rsp_error_q;
     assign core_rsp_o.aborted = 1'b0;
 
-    //  Resize the memory response data to the core response width
-    //  memory data width is bigger than the width of the core's interface
-    if (MEM_REQ_RATIO > 1) begin : gen_downsize_core_rsp_data
-    //    hpdcache_mux #(
-    //        .NINPUT      (MEM_REQ_RATIO),
-    //        .DATA_WIDTH  (HPDcacheCfg.reqDataWidth)
-    //    ) data_read_rsp_mux_i(
-    //        .data_i      (mem_resp_read_i.mem_resp_r_data),
-    //        .sel_i       (req_addr_q[$clog2(HPDcacheCfg.reqDataWidth/8) +:
-    //                                 MEM_REQ_WORD_INDEX_WIDTH]),
-    //        .data_o      (rsp_rdata_d)
-    //    );
+    // Resize the memory response data to the core response width
+    hpdcache_req_user_t [REQ_MEM_RATIO-1:0] burst_resp_user;
+    hpdcache_data_resize #(
+        .WR_WIDTH (HPDcacheCfg.u.memDataWidth),
+        .RD_WIDTH ($bits(hpdcache_req_data_t)),
+        .DEPTH    (HPDcacheCfg.u.refillFifoDepth),
+        .REPEATER (1'b1)
+    ) i_resp_data_resize(
+        .clk_i,
+        .rst_ni,
 
-    //    hpdcache_mux #(
-    //        .NINPUT      (MEM_REQ_RATIO),
-    //        .DATA_WIDTH  (HPDcacheCfg.reqUserWidth)
-    //    ) user_read_rsp_mux_i(
-    //        .data_i      (mem_resp_read_i.mem_resp_r_user),
-    //        .sel_i       (req_addr_q[$clog2(HPDcacheCfg.reqDataWidth/8) +:
-    //                                 MEM_REQ_WORD_INDEX_WIDTH]),
-    //        .data_o      (rsp_ruser_d)
-    //    );
-    end
+        .w_i    (mem_resp_read_valid_i),
+        .wok_o  (mem_resp_read_ready_o),
+        .wdata_i(mem_resp_read_i.mem_resp_r_data),
+        .wlast_i(mem_resp_read_i.mem_resp_r_last),
 
-    else if (REQ_MEM_RATIO > 1) begin : gen_upsize_core_rsp_data
-        assign rsp_rdata_d[0] = (multiflit && mem_resp_read_i.mem_resp_r_last) ? {mem_resp_read_i.mem_resp_r_data, rsp_rdata_q[0][63:0]} : {2{mem_resp_read_i.mem_resp_r_data}};
-        assign rsp_ruser_d = (multiflit && mem_resp_read_i.mem_resp_r_last) ? {rsp_ruser_q && mem_resp_read_i.mem_resp_r_user} : mem_resp_read_i.mem_resp_r_user;
-    end
+        .r_i    (mem_resp_resize_r_i),
+        .rok_o  (mem_resp_read_valid),
+        .rdata_o(rsp_rdata),
+        .rlast_o(mem_resp_read_last)
+    );
+    hpdcache_data_resize #(
+        .WR_WIDTH (HPDcacheCfg.u.wordUserWidth*HPDcacheCfg.wordsPerMemFlit),
+        .RD_WIDTH (HPDcacheCfg.u.wordUserWidth*HPDcacheCfg.u.reqWords*REQ_MEM_RATIO),
+        .DEPTH    (HPDcacheCfg.u.refillFifoDepth),
+        .REPEATER (1'b1)
+    ) i_resp_user_resize(
+        .clk_i,
+        .rst_ni,
 
-    //  memory data width is equal to the width of the core's interface
-    else begin : gen_eqsize_core_rsp_data
-    //    assign rsp_rdata_d = mem_resp_read_i.mem_resp_r_data;
-    //    assign rsp_ruser_d = mem_resp_read_i.mem_resp_r_user;
-    end
+        .w_i    (mem_resp_read_valid_i),
+        .wok_o  (/* see data resizer wok_o */),
+        .wdata_i(mem_resp_read_i.mem_resp_r_user),
+        .wlast_i(mem_resp_read_i.mem_resp_r_last),
+
+        .r_i    (mem_resp_resize_r_i),
+        .rok_o  (/* see data resizer rok_o */),
+        .rdata_o(burst_resp_user),
+        .rlast_o(/* see data resizer rlast_o */)
+    );
+    assign rsp_ruser = and_reduce_user(burst_resp_user);
 
     //  This FSM is always ready to accept the response
     assign mem_resp_read_ready_o  = 1'b1,
@@ -1105,12 +1062,7 @@ import hpdcache_pkg::*;
 //  {{{
     always_ff @(posedge clk_i)
     begin
-        if (mem_resp_read_valid_i) begin
-            rsp_rdata_q <= rsp_rdata_d;
-            rsp_ruser_q <= rsp_ruser_d;
-        end
         mem_resp_write_valid_q <= mem_resp_write_valid_d;
-        mem_resp_read_valid_q  <= mem_resp_read_valid_d;
     end
 
     always_ff @(posedge clk_i or negedge rst_ni)

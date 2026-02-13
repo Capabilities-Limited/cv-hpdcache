@@ -34,6 +34,8 @@ import hpdcache_pkg::*;
         nRequesters: (4'b1 << `CONF_HPDCACHE_REQ_SRC_ID_WIDTH),
         paWidth: `CONF_HPDCACHE_PA_WIDTH,
         wordWidth: `CONF_HPDCACHE_WORD_WIDTH,
+        wordUserWidth: `CONF_HPDCACHE_WORD_USER_WIDTH,
+        AMOArithWidth: `CONF_HPDCACHE_AMO_ARITH_WIDTH,
         sets: `CONF_HPDCACHE_SETS,
         ways: `CONF_HPDCACHE_WAYS,
         clWords: `CONF_HPDCACHE_CL_WORDS,
