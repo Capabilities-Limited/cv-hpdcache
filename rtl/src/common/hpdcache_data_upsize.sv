@@ -168,7 +168,7 @@ import hpdcache_pkg::*;
           logic [WORDCNT_WIDTH-1:0] mask;
           mask = '0;
           for (int i = 0; i < WORDCNT_WIDTH; i++) begin
-            if (count > (1 << i)) mask[i] = 1'b1;
+            if (count >= (1 << i)) mask[i] = 1'b1;
           end
           for (int i = 0; i < WR_WORDS; i++) begin
             rdata_o[i*WR_WIDTH +: WR_WIDTH] = buf_q[rdptr_q][i & mask];
