@@ -224,7 +224,6 @@ import hpdcache_pkg::*;
     hpdcache_req_data_t      refill_dirty_wdata;
     hpdcache_req_user_t      refill_dirty_wuser;
     hpdcache_req_be_t        refill_dirty_be;
-    hpdcache_refill_user_t   refill_user;
 
     mem_resp_metadata_t      refill_fifo_resp_meta_wdata, refill_fifo_resp_meta_rdata;
     logic                    refill_fifo_resp_meta_w, refill_fifo_resp_meta_wok;
@@ -634,7 +633,7 @@ import hpdcache_pkg::*;
             .NINPUT      (REFILL_REQ_RATIO),
             .DATA_WIDTH  (HPDcacheCfg.u.reqWord*HPDcacheCfg.u.wordUserWidth)
         ) user_read_rsp_mux_i(
-            .data_i      (refill_user),
+            .data_i      (refill_user_o),
             .sel_i       (refill_core_rsp_word[0 +: $clog2(REFILL_REQ_RATIO)]),
             .data_o      (refill_core_rsp_ruser)
         );
@@ -643,7 +642,7 @@ import hpdcache_pkg::*;
     //  refill's width is equal to the width of the core's interface
     else begin : gen_core_rsp_eqsize
         assign refill_core_rsp_rdata = refill_data_o;
-        assign refill_core_rsp_ruser = refill_user;
+        assign refill_core_rsp_ruser = refill_user_o;
     end
 
     /* FIXME: when multiple chunks, in case of error, the error bit is not
@@ -748,20 +747,16 @@ import hpdcache_pkg::*;
                 assign dirty_sel = refill_dirty_valid && dirty_be[i];
             end
             assign refill_data[i] = dirty_sel ? dirty_data[i] : clean_data[i];
-            // Only assign user bits once per word.
-            if (i[HPDcacheCfg.wordByteIdxWidth-1:0] == 0) begin
-                localparam int j = i >> HPDcacheCfg.wordByteIdxWidth;
-                assign refill_user[j] = dirty_sel ? dirty_user[j] : clean_user[j];
-            end
         end
         assign refill_data_o = hpdcache_refill_data_t'(refill_data);
+        // XXX TODO This assumes exactly one user field per 'accessBytes'
+        assign refill_user_o = (refill_dirty_valid && (dirty_be != 0)) ? dirty_user : clean_user;
 
     end else begin : gen_refill_no_dirty_data
         // Reshape data to the expected type
         assign refill_data_o = hpdcache_refill_data_t'(clean_data);
-        assign refill_user = hpdcache_refill_user_t'(clean_user);
+        assign refill_user_o = hpdcache_refill_user_t'(clean_user);
     end
-    assign refill_user_o = refill_user;
 
     //      The DATA fifo is only used for refill responses
     assign refill_fifo_resp_data_w = mem_resp_valid_i &
