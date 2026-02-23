@@ -1206,37 +1206,41 @@ import hpdcache_pkg::*;
     function automatic hpdcache_mem_req_t hpdcache_req_write_sel_id(
         hpdcache_mem_req_t req, int kind
     );
+        automatic hpdcache_mem_req_t ret_req;
+        ret_req = req;
         //  Request from the write buffer
         unique if (kind == 0) begin
-            req.mem_req_id = {1'b0, req.mem_req_id[0 +: HPDcacheCfg.u.memIdWidth-1]};
+            ret_req.mem_req_id = {1'b0, req.mem_req_id[0 +: HPDcacheCfg.u.memIdWidth-1]};
         end
         //  Request from the flush controller
         else if (kind == 1) begin
-            req.mem_req_id = {1'b1, req.mem_req_id[0 +: HPDcacheCfg.u.memIdWidth-1]};
+            ret_req.mem_req_id = {1'b1, req.mem_req_id[0 +: HPDcacheCfg.u.memIdWidth-1]};
         end
         //  Request from the uncached controller
         else if (kind == 2) begin
-            req.mem_req_id = '1;
+            ret_req.mem_req_id = '1;
         end
-        return req;
+        return ret_req;
     endfunction
 
     function automatic hpdcache_mem_resp_w_t hpdcache_resp_write_sel_id(
         hpdcache_mem_resp_w_t resp, int kind
     );
+        automatic hpdcache_mem_resp_w_t ret_resp;
+        ret_resp = resp;
         //  Response to the write buffer
         unique if (kind == 0) begin
-            resp.mem_resp_w_id = {1'b0, resp.mem_resp_w_id[0 +: HPDcacheCfg.u.memIdWidth-1]};
+            ret_resp.mem_resp_w_id = {1'b0, resp.mem_resp_w_id[0 +: HPDcacheCfg.u.memIdWidth-1]};
         end
         //  Response to the flush controller
         else if (kind == 1) begin
-            resp.mem_resp_w_id = {1'b0, resp.mem_resp_w_id[0 +: HPDcacheCfg.u.memIdWidth-1]};
+            ret_resp.mem_resp_w_id = {1'b0, resp.mem_resp_w_id[0 +: HPDcacheCfg.u.memIdWidth-1]};
         end
         //  Response to the uncached controller
         else if (kind == 2) begin
-            resp.mem_resp_w_id = '1;
+            ret_resp.mem_resp_w_id = '1;
         end
-        return resp;
+        return ret_resp;
     endfunction
 
     assign mem_req_write_wbuf_ready        = arb_mem_req_write_ready[0];
