@@ -224,7 +224,7 @@ import hpdcache_pkg::*;
     hpdcache_req_sid_t     miss_mshr_alloc_sid;
     hpdcache_word_t        miss_mshr_alloc_word;
     hpdcache_req_data_t    miss_mshr_alloc_wdata;
-    hpdcache_req_data_t    miss_mshr_alloc_wuser;
+    hpdcache_req_user_t    miss_mshr_alloc_wuser;
     hpdcache_req_be_t      miss_mshr_alloc_be;
     hpdcache_way_vector_t  miss_mshr_alloc_victim_way;
     logic                  miss_mshr_alloc_need_rsp;
