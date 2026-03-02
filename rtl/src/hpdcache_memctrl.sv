@@ -1226,7 +1226,13 @@ import hpdcache_pkg::*;
         .sel_i       (data_flush_read_way_q),
         .data_o      (data_flush_read_user_cl)
     );
-    assign data_flush_read_user_o = access_user_from_cl_user(data_flush_read_user_cl, data_flush_read_word_q);
+    hpdcache_access_user_t prev_resp;
+    logic prev_req;
+    always_ff @(posedge clk_i) begin
+      prev_req <= data_flush_read_i;
+      prev_resp <= data_flush_read_user_o;
+    end
+    assign data_flush_read_user_o = prev_req ? access_user_from_cl_user(data_flush_read_user_cl, data_flush_read_word_q) : prev_resp;
     hpdcache_mux #(
         .NINPUT      (HPDcacheCfg.u.dataWaysPerRamWord),
         .DATA_WIDTH  (HPDcacheCfg.accessWidth),
