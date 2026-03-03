@@ -313,7 +313,7 @@ import hpdcache_pkg::*;
         input hpdcache_req_user_t req_user,
         input hpdcache_word_t start_idx
     );
-        hpdcache_cl_user_t cl_user = 'x; // All non-written words are don't-care
+        hpdcache_cl_user_t cl_user = '0;
         for (int i = 0; i < HPDcacheCfg.u.reqWords; i++) begin
             cl_user[start_idx + i] = req_user[i];
         end
@@ -324,7 +324,7 @@ import hpdcache_pkg::*;
         input hpdcache_access_user_t access_user,
         input hpdcache_word_t start_idx
     );
-        hpdcache_cl_user_t cl_user = 'x; // All non-written words are don't-care
+        hpdcache_cl_user_t cl_user = '0;
         for (int i = 0; i < HPDcacheCfg.u.accessWords; i++) begin
             cl_user[start_idx + i] = access_user[i];
         end
