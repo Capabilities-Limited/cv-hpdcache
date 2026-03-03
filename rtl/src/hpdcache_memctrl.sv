@@ -857,7 +857,6 @@ import hpdcache_pkg::*;
     //  Decode way index
     assign data_ram_word = hpdcache_way_to_data_ram_word(data_way);
     assign data_ram_row = hpdcache_way_to_data_ram_row(data_way);
-    assign user_cs = (data_req_read_i || data_flush_read_i) ? ~0 : data_way;
     assign user_we = (data_write) ? data_way : '0;
     assign user_addr = data_refill_i     ?     data_refill_set_i :
                        data_flush_read_i ? data_flush_read_set_i :
@@ -873,6 +872,8 @@ import hpdcache_pkg::*;
         data_wbyteenable = '0;
         data_wentry      = '0;
 
+        user_cs          = '0;
+
         unique case (1'b1)
             //  Select data read inputs
             data_req_read_i: begin
@@ -884,6 +885,8 @@ import hpdcache_pkg::*;
                     data_cs[i] = hpdcache_compute_data_ram_cs(data_req_read_size_i,
                                                               data_req_read_word_i);
                 end
+
+                user_cs = '1;
             end
 
             //  Select data flush read inputs
@@ -894,6 +897,8 @@ import hpdcache_pkg::*;
                 for (int unsigned i = 0; i < HPDCACHE_DATA_RAM_Y_CUTS; i++) begin
                     data_cs[i] = data_ram_row[i] ? '1 : '0;
                 end
+
+                user_cs = '1;
             end
 
             //  Select data write inputs
@@ -922,6 +927,8 @@ import hpdcache_pkg::*;
                         end
                     end
                 end
+
+                user_cs = data_way;
             end
 
             default: begin
