@@ -163,7 +163,7 @@ import hpdcache_pkg::*;
     );
         logic [HPDcacheCfg.u.wordUserWidth-1:0] result;
         int i, j;
-        result = ~0;
+        result = '1;
         for (j = 0; j < ACCESS_MEM_RATIO; j++) begin
             for (i = 0; i < HPDcacheCfg.u.wordUserWidth; i++) begin
                 result[i] &= ruser[j*HPDcacheCfg.u.wordUserWidth + i];
@@ -372,7 +372,7 @@ import hpdcache_pkg::*;
         refill_core_rsp_sid     = '0;
         refill_core_rsp_tid     = '0;
         refill_core_rsp_error   = 1'b0;
-        refill_core_rsp_word    = 0;
+        refill_core_rsp_word    = '0;
 
         refill_fifo_resp_meta_r = 1'b0;
         refill_fifo_resp_data_r = 1'b0;
