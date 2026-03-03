@@ -362,6 +362,7 @@ import hpdcache_pkg::*;
         refill_cnt_d            = refill_cnt_q;
 
         refill_dirty_wdata      = refill_dirty_wdata_q;
+        refill_dirty_wuser      = refill_dirty_wuser_q;
         refill_dirty_be         = refill_dirty_be_q;
         refill_dirty_valid      = 1'b0;
 
