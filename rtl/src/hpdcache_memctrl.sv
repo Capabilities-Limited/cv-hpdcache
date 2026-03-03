@@ -468,9 +468,9 @@ import hpdcache_pkg::*;
     //  Memory arrays
     //  {{{
     generate
-        genvar x, y, w;
+        genvar x, y, dir_w;
 
-        for (w = 0; w < int'(HPDcacheCfg.u.ways); w++) begin : gen_dir_sram
+        for (dir_w = 0; dir_w < int'(HPDcacheCfg.u.ways); dir_w++) begin : gen_dir_sram
             //  Directory
             //
             hpdcache_sram #(
@@ -481,19 +481,19 @@ import hpdcache_pkg::*;
             ) dir_sram(
                 .clk           (clk_i),
                 .rst_n         (rst_ni),
-                .cs            (dir_cs[w]),
-                .we            (dir_we[w]),
+                .cs            (dir_cs[dir_w]),
+                .we            (dir_we[dir_w]),
                 .addr          (dir_addr),
-                .wdata         (dir_wentry[w]),
-                .rdata         (dir_rentry[w]),
+                .wdata         (dir_wentry[dir_w]),
+                .rdata         (dir_rentry[dir_w]),
                 .err_inj_i     (1'b0),
                 .err_inj_msk_i ('0),
-                .err_cor_o     (dir_err_cor_o[w]),
-                .err_unc_o     (dir_err_unc_o[w])
+                .err_cor_o     (dir_err_cor_o[dir_w]),
+                .err_unc_o     (dir_err_unc_o[dir_w])
             );
 
-            assign dir_err_valid_o[w] = dir_rentry[w].valid;
-            assign dir_err_dirty_o[w] = dir_rentry[w].dirty;
+            assign dir_err_valid_o[dir_w] = dir_rentry[dir_w].valid;
+            assign dir_err_dirty_o[dir_w] = dir_rentry[dir_w].dirty;
 
             //  User bits
             //
@@ -504,12 +504,12 @@ import hpdcache_pkg::*;
             ) user_sram (
                 .clk         (clk_i),
                 .rst_n       (rst_ni),
-                .cs          (user_cs[w]),
-                .we          (user_we[w]),
+                .cs          (user_cs[dir_w]),
+                .we          (user_we[dir_w]),
                 .addr        (user_addr),
-                .wdata       (user_wentry[w]),
-                .watomenable (user_watomenable[w]),
-                .rdata       (user_rentry[w])
+                .wdata       (user_wentry[dir_w]),
+                .watomenable (user_watomenable[dir_w]),
+                .rdata       (user_rentry[dir_w])
             ); // XXX TODO Tag ECC
         end
 
