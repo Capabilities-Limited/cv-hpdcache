@@ -1015,7 +1015,6 @@ import hpdcache_pkg::*;
     //  Decode way index
     assign data_ram_word = hpdcache_way_to_data_ram_word(data_way);
     assign data_ram_row = hpdcache_way_to_data_ram_row(data_way);
-    assign user_cs = (data_req_read_i || data_flush_read_i) ? ~0 : data_way;
     assign user_we = (data_write) ? data_way : '0;
     assign user_addr = data_refill_i     ?     data_refill_set_i :
                        data_flush_read_i ? data_flush_read_set_i :
@@ -1037,6 +1036,7 @@ import hpdcache_pkg::*;
     begin : data_ctrl_comb
         automatic hpdcache_data_row_enable_t __word_sel_rd, __word_sel_wr;
         automatic hpdcache_data_ram_addr_t   __data_rd_addr, __data_wr_addr;
+        automatic hpdcache_way_vector_t __user_cs_rd, __user_cs_wr;
 
         word_sel_rd = hpdcache_compute_data_ram_cs(data_read_size, data_read_word);
         word_sel_wr = hpdcache_compute_data_ram_cs(data_write_size, data_write_word);
@@ -1052,6 +1052,9 @@ import hpdcache_pkg::*;
                 data_addr[i][j] = data_write && word_sel_wr[j] ? __data_wr_addr : __data_rd_addr;
             end
         end
+        __user_cs_rd = data_read ? '1 : '0;
+        __user_cs_wr = data_write ? data_way : '0;
+        user_cs = __user_cs_rd | __user_cs_wr;
     end
 
     always_comb
