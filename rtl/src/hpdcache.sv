@@ -40,13 +40,13 @@ import hpdcache_pkg::*;
     parameter type hpdcache_data_word_t = logic,
     parameter type hpdcache_data_be_t = logic,
     parameter type hpdcache_req_offset_t = logic,
-    parameter type hpdcache_req_user_t = logic,
     parameter type hpdcache_req_data_t = logic,
     parameter type hpdcache_req_be_t = logic,
     parameter type hpdcache_req_sid_t = logic,
     parameter type hpdcache_req_tid_t = logic,
     parameter type hpdcache_req_t = logic,
     parameter type hpdcache_rsp_t = logic,
+    parameter type hpdcache_req_user_t = logic[0:0],
     //  }}}
 
     //  Memory Interface Definitions
@@ -54,12 +54,12 @@ import hpdcache_pkg::*;
     parameter type hpdcache_mem_addr_t = logic,
     parameter type hpdcache_mem_id_t = logic,
     parameter type hpdcache_mem_data_t = logic,
-    parameter type hpdcache_mem_user_t = logic,
     parameter type hpdcache_mem_be_t = logic,
     parameter type hpdcache_mem_req_t = logic,
     parameter type hpdcache_mem_req_w_t = logic,
     parameter type hpdcache_mem_resp_r_t = logic,
-    parameter type hpdcache_mem_resp_w_t = logic
+    parameter type hpdcache_mem_resp_w_t = logic,
+    parameter type hpdcache_mem_user_t = logic[0:0]
     //  }}}
 )
     //  }}}
