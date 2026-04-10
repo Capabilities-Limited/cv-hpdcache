@@ -459,20 +459,24 @@ import hpdcache_pkg::*;
 
             //  User bits
             //
-            hpdcache_sram_watomenable #(
-                .DATA_SIZE ($bits(hpdcache_cl_user_t)),
-                .ADDR_SIZE (HPDCACHE_DIR_RAM_ADDR_WIDTH),
-                .ATOM_SIZE (HPDcacheCfg.u.wordUserWidth)
-            ) user_sram (
-                .clk         (clk_i),
-                .rst_n       (rst_ni),
-                .cs          (user_cs[dir_w]),
-                .we          (user_we[dir_w]),
-                .addr        (user_addr),
-                .wdata       (user_wentry[dir_w]),
-                .watomenable (user_watomenable[dir_w]),
-                .rdata       (user_rentry[dir_w])
-            );
+            if (HPDcacheCfg.u.userEn) begin : gen_user_rentry_useren
+                hpdcache_sram_watomenable #(
+                    .DATA_SIZE ($bits(hpdcache_cl_user_t)),
+                    .ADDR_SIZE (HPDCACHE_DIR_RAM_ADDR_WIDTH),
+                    .ATOM_SIZE (HPDcacheCfg.u.wordUserWidth)
+                ) user_sram (
+                    .clk         (clk_i),
+                    .rst_n       (rst_ni),
+                    .cs          (user_cs[dir_w]),
+                    .we          (user_we[dir_w]),
+                    .addr        (user_addr),
+                    .wdata       (user_wentry[dir_w]),
+                    .watomenable (user_watomenable[dir_w]),
+                    .rdata       (user_rentry[dir_w])
+                );
+            end else begin : gen_user_rentry_default
+                assign user_rentry[dir_w] = '0;
+            end
         end
 
         //  Data
@@ -791,6 +795,16 @@ import hpdcache_pkg::*;
     //  Multiplex between data write requests
     always_comb
     begin : data_write_comb
+        data_write        = 1'b0;
+        data_write_enable = 1'b0;
+        data_write_set    = '0;
+        data_write_size   = '0;
+        data_write_word   = '0;
+        data_write_data   = '0;
+        data_write_be     = '0;
+
+        user_watomenable = '0;
+        user_wentry      = '0;
 
         unique case (1'b1)
             data_refill_i: begin
@@ -802,8 +816,10 @@ import hpdcache_pkg::*;
                 data_write_data   = data_refill_data_i;
                 data_write_be     = '1;
 
-                user_watomenable  = {HPDcacheCfg.u.ways{HPDcacheCfg.u.clWords'(1) << data_refill_word_i}};
-                user_wentry       = {HPDcacheCfg.u.ways{cl_user_from_access_user(data_refill_user_i, data_refill_word_i)}};
+                if (HPDcacheCfg.u.userEn) begin
+                    user_watomenable  = {HPDcacheCfg.u.ways{HPDcacheCfg.u.clWords'(1) << data_refill_word_i}};
+                    user_wentry       = {HPDcacheCfg.u.ways{cl_user_from_access_user(data_refill_user_i, data_refill_word_i)}};
+                end
             end
 
             data_req_write_i: begin
@@ -815,8 +831,10 @@ import hpdcache_pkg::*;
                 data_write_data   = data_req_write_data;
                 data_write_be     = data_req_write_be;
 
-                user_watomenable  = {HPDcacheCfg.u.ways{user_enable_from_byte_enable(data_req_write_be, data_req_write_word_i)}};
-                user_wentry       = {HPDcacheCfg.u.ways{cl_user_from_req_user(data_req_write_user_i, data_req_write_word_i)}};
+                if (HPDcacheCfg.u.userEn) begin
+                    user_watomenable  = {HPDcacheCfg.u.ways{user_enable_from_byte_enable(data_req_write_be, data_req_write_word_i)}};
+                    user_wentry       = {HPDcacheCfg.u.ways{cl_user_from_req_user(data_req_write_user_i, data_req_write_word_i)}};
+                end
             end
 
             data_amo_write_i: begin
@@ -828,21 +846,13 @@ import hpdcache_pkg::*;
                 data_write_data   = data_amo_write_data;
                 data_write_be     = data_amo_write_be;
 
-                user_watomenable  = {HPDcacheCfg.u.ways{user_enable_from_byte_enable(data_amo_write_be, data_amo_write_word_i)}};
-                user_wentry       = {HPDcacheCfg.u.ways{cl_user_from_req_user(data_amo_write_user_i, data_amo_write_word_i)}};
+                if (HPDcacheCfg.u.userEn) begin
+                    user_watomenable  = {HPDcacheCfg.u.ways{user_enable_from_byte_enable(data_amo_write_be, data_amo_write_word_i)}};
+                    user_wentry       = {HPDcacheCfg.u.ways{cl_user_from_req_user(data_amo_write_user_i, data_amo_write_word_i)}};
+                end
             end
 
             default: begin
-                data_write        = 1'b0;
-                data_write_enable = 1'b0;
-                data_write_set    = '0;
-                data_write_size   = '0;
-                data_write_word   = '0;
-                data_write_data   = '0;
-                data_write_be     = '0;
-
-                user_watomenable  = '0;
-                user_wentry       = '0;
             end
         endcase
     end
@@ -857,12 +867,16 @@ import hpdcache_pkg::*;
     //  Decode way index
     assign data_ram_word = hpdcache_way_to_data_ram_word(data_way);
     assign data_ram_row = hpdcache_way_to_data_ram_row(data_way);
-    assign user_we = (data_write) ? data_way : '0;
-    assign user_addr = data_refill_i     ?     data_refill_set_i :
-                       data_flush_read_i ? data_flush_read_set_i :
-                       data_amo_write_i  ?  data_amo_write_set_i :
-                       data_req_read_i   ?   data_req_read_set_i :
-                       /*data_req_write_i*/ data_req_write_set_i ;
+    assign user_we = (HPDcacheCfg.u.userEn && data_write) ? data_way : '0;
+    if (HPDcacheCfg.u.userEn) begin : gen_user_addr_useren
+        assign user_addr = data_refill_i     ?     data_refill_set_i :
+                           data_flush_read_i ? data_flush_read_set_i :
+                           data_amo_write_i  ?  data_amo_write_set_i :
+                           data_req_read_i   ?   data_req_read_set_i :
+                           /*data_req_write_i*/ data_req_write_set_i ;
+    end else begin : gen_user_addr_default
+        assign user_addr = '0;
+    end
 
     always_comb
     begin : data_ctrl_comb
@@ -886,7 +900,7 @@ import hpdcache_pkg::*;
                                                               data_req_read_word_i);
                 end
 
-                user_cs = '1;
+                if (HPDcacheCfg.u.userEn) user_cs = '1;
             end
 
             //  Select data flush read inputs
@@ -898,7 +912,7 @@ import hpdcache_pkg::*;
                     data_cs[i] = data_ram_row[i] ? '1 : '0;
                 end
 
-                user_cs = '1;
+                if(HPDcacheCfg.u.userEn) user_cs = '1;
             end
 
             //  Select data write inputs
@@ -928,7 +942,7 @@ import hpdcache_pkg::*;
                     end
                 end
 
-                user_cs = data_way;
+                if (HPDcacheCfg.u.userEn) user_cs = data_way;
             end
 
             default: begin
@@ -978,17 +992,22 @@ import hpdcache_pkg::*;
         assign data_read_req_word = data_read_words;
     end
 
-    //  Mux the user bits / data according to the hit way
-    hpdcache_mux #(
-        .NINPUT      (HPDcacheCfg.u.ways),
-        .DATA_WIDTH  ($bits(hpdcache_cl_user_t)),
-        .ONE_HOT_SEL (1'b1)
-    ) user_read_req_word_way_mux_i(
-        .data_i      (user_rentry),
-        .sel_i       (data_req_read_way_i),
-        .data_o      (data_req_read_user_cl)
-    );
-    assign data_req_read_user_o = req_user_from_cl_user(data_req_read_user_cl, data_req_read_word_q);
+    if (HPDcacheCfg.u.userEn) begin : gen_req_read_user_o_useren
+        //  Mux the user bits / data according to the hit way
+        hpdcache_mux #(
+            .NINPUT      (HPDcacheCfg.u.ways),
+            .DATA_WIDTH  ($bits(hpdcache_cl_user_t)),
+            .ONE_HOT_SEL (1'b1)
+        ) user_read_req_word_way_mux_i(
+            .data_i      (user_rentry),
+            .sel_i       (data_req_read_way_i),
+            .data_o      (data_req_read_user_cl)
+        );
+        assign data_req_read_user_o = req_user_from_cl_user(data_req_read_user_cl, data_req_read_word_q);
+    end else begin : gen_req_read_user_o_default
+        assign data_req_read_user_cl = '0;
+        assign data_req_read_user_o = '0;
+    end
     hpdcache_mux #(
         .NINPUT      (HPDcacheCfg.u.ways),
         .DATA_WIDTH  (HPDcacheCfg.reqDataWidth),
@@ -1064,16 +1083,21 @@ import hpdcache_pkg::*;
         end
     end
 
-    hpdcache_mux #(
-        .NINPUT      (HPDcacheCfg.u.ways),
-        .DATA_WIDTH  ($bits(hpdcache_cl_user_t)),
-        .ONE_HOT_SEL (1'b1)
-    ) user_read_flush_mux_way_i(
-        .data_i      (user_rentry),
-        .sel_i       (data_flush_read_way_i),
-        .data_o      (data_flush_read_user_cl)
-    );
-    assign data_flush_read_user_o = access_user_from_cl_user(data_flush_read_user_cl, data_flush_read_word_q);
+    if (HPDcacheCfg.u.userEn) begin : gen_data_flush_read_user_o_useren
+        hpdcache_mux #(
+            .NINPUT      (HPDcacheCfg.u.ways),
+            .DATA_WIDTH  ($bits(hpdcache_cl_user_t)),
+            .ONE_HOT_SEL (1'b1)
+        ) user_read_flush_mux_way_i(
+            .data_i      (user_rentry),
+            .sel_i       (data_flush_read_way_i),
+            .data_o      (data_flush_read_user_cl)
+        );
+        assign data_flush_read_user_o = access_user_from_cl_user(data_flush_read_user_cl, data_flush_read_word_q);
+    end else begin : gen_data_flush_read_user_o_default
+        assign data_flush_read_user_cl = '0;
+        assign data_flush_read_user_o = '0;
+    end
     hpdcache_mux #(
         .NINPUT      (HPDcacheCfg.u.dataWaysPerRamWord),
         .DATA_WIDTH  (HPDcacheCfg.accessWidth),

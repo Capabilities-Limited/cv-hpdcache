@@ -463,6 +463,8 @@ package hpdcache_pkg;
         bit wtEn;
         //  Enable support for the write-back policy
         bit wbEn;
+        //  Whether to enable user bit handling
+        bit userEn;
         //  Enable fast loads.
         //  Perform loads in 1 cycle at the cost of structural hazard for stores
         bit lowLatency;

@@ -461,8 +461,6 @@ import hpdcache_pkg::*;
                                                          : core_req_i.addr_tag;
     assign st0_req.wdata        = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.wdata
                                                          : core_req_i.wdata;
-    assign st0_req.wuser        = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.wuser
-                                                         : core_req_i.wuser;
     assign st0_req.op           = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.op
                                                          : core_req_i.op;
     assign st0_req.be           = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.be
@@ -479,6 +477,12 @@ import hpdcache_pkg::*;
                                                            core_req_i.phys_indexed;
     assign st0_req.pma          = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.pma
                                                          : st0_req_pma;
+    if (HPDcacheCfg.u.userEn) begin : gen_st0_req_wuser_useren
+        assign st0_req.wuser = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.wuser
+                                                      : core_req_i.wuser;
+    end else begin : gen_st0_req_wuser_default
+        assign st0_req.wuser = '0;
+    end
 
     //     Check if the request from the RTAB has been tagged with an error
     assign st0_req_is_error = st0_rtab_pop_try_valid & st0_rtab_pop_try_error;
@@ -520,7 +524,6 @@ import hpdcache_pkg::*;
 
     assign st1_req.addr_offset     = st1_req_q.addr_offset;
     assign st1_req.addr_tag        = st1_req_rtab_q ? st1_req_q.addr_tag : st1_req_tag;
-    assign st1_req.wuser           = st1_req_q.wuser;
     assign st1_req.wdata           = st1_req_q.wdata;
     assign st1_req.op              = st1_req_q.op;
     assign st1_req.be              = st1_req_q.be;
@@ -530,6 +533,7 @@ import hpdcache_pkg::*;
     assign st1_req.need_rsp        = st1_req_q.need_rsp;
     assign st1_req.phys_indexed    = st1_req_q.phys_indexed;
     assign st1_req.pma             = st1_req_rtab_q ? st1_req_q.pma : st1_req_pma;
+    assign st1_req.wuser           = HPDcacheCfg.u.userEn ? st1_req_q.wuser : '0;
 
     //         A requester can ask to abort a request it initiated on the
     //         previous cycle (stage 0). Useful in case of TLB miss for example
@@ -1062,10 +1066,10 @@ import hpdcache_pkg::*;
     //  Write buffer outputs
     //  {{{
     assign wbuf_write_addr_o = st1_req_addr;
-    assign wbuf_write_user_o = st1_req.wuser;
     assign wbuf_write_data_o = st1_req.wdata;
     assign wbuf_write_be_o   = st1_req.be;
     assign wbuf_flush_all_o  = cmo_wbuf_flush_all_i | uc_wbuf_flush_all_i | wbuf_flush_i;
+    assign wbuf_write_user_o = HPDcacheCfg.u.userEn ? st1_req.wuser : '0;
     //  }}}
 
     //  Miss handler outputs
@@ -1080,13 +1084,13 @@ import hpdcache_pkg::*;
     assign st2_mshr_alloc_word_o        = st2_mshr_alloc_addr_q[HPDcacheCfg.wordByteIdxWidth +:
                                                                 HPDcacheCfg.clWordIdxWidth];
     assign st2_mshr_alloc_wdata_o       = st2_mshr_alloc_wdata_q;
-    assign st2_mshr_alloc_wuser_o       = st2_mshr_alloc_wuser_q;
     assign st2_mshr_alloc_be_o          = st2_mshr_alloc_be_q;
     assign st2_mshr_alloc_victim_way_o  = st2_mshr_alloc_victim_way_q;
     assign st2_mshr_alloc_need_rsp_o    = st2_mshr_alloc_need_rsp_q;
     assign st2_mshr_alloc_is_prefetch_o = st2_mshr_alloc_is_prefetch_q;
     assign st2_mshr_alloc_wback_o       = st2_mshr_alloc_wback_q;
     assign st2_mshr_alloc_dirty_o       = st2_mshr_alloc_dirty_q;
+    assign st2_mshr_alloc_wuser_o       = HPDcacheCfg.u.userEn ? st2_mshr_alloc_wuser_q : '0;
     //  }}}
 
     //  Uncacheable request handler outputs
@@ -1097,7 +1101,7 @@ import hpdcache_pkg::*;
            uc_req_addr_o             = st1_req_addr,
            uc_req_size_o             = st1_req.size,
            uc_req_data_o             = st1_req.wdata,
-           uc_req_user_o             = st1_req.wuser,
+           uc_req_user_o             = HPDcacheCfg.u.userEn ? st1_req.wuser : '0,
            uc_req_be_o               = st1_req.be,
            uc_req_uc_o               = st1_req_is_uncacheable,
            uc_req_sid_o              = st1_req.sid,
@@ -1318,10 +1322,6 @@ import hpdcache_pkg::*;
                                 (cmo_core_rsp_valid_i    ? cmo_core_rsp_i.rdata :
                                 (uc_core_rsp_valid_i     ? uc_core_rsp_i.rdata :
                                                            data_req_read_data)));
-    assign core_rsp_o.ruser   = (refill_core_rsp_valid_i ? refill_core_rsp_i.ruser :
-                                (cmo_core_rsp_valid_i    ? cmo_core_rsp_i.ruser :
-                                (uc_core_rsp_valid_i     ? uc_core_rsp_i.ruser :
-                                                           data_req_read_user)));
     assign core_rsp_o.sid     = (refill_core_rsp_valid_i ? refill_core_rsp_i.sid :
                                 (cmo_core_rsp_valid_i    ? cmo_core_rsp_i.sid :
                                 (uc_core_rsp_valid_i     ? uc_core_rsp_i.sid :
@@ -1335,6 +1335,14 @@ import hpdcache_pkg::*;
                                 (uc_core_rsp_valid_i     ? uc_core_rsp_i.error :
                                                            core_rsp_error)));
     assign core_rsp_o.aborted = core_rsp_aborted;
+    if (HPDcacheCfg.u.userEn) begin : gen_core_rsp_o_ruser_useren
+        assign core_rsp_o.ruser = (refill_core_rsp_valid_i ? refill_core_rsp_i.ruser :
+                                  (cmo_core_rsp_valid_i    ? cmo_core_rsp_i.ruser :
+                                  (uc_core_rsp_valid_i     ? uc_core_rsp_i.ruser :
+                                                             data_req_read_user)));
+    end else begin : gen_core_rsp_o_ruser_default
+        assign core_rsp_o.ruser = '0;
+    end
     //  }}}
 
     //  Assertions

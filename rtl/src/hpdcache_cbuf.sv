@@ -60,8 +60,8 @@ import hpdcache_pkg::*;
     assign alloc_full_o = &valid_q;
 
     assign ack_wdata_o = entries_q[ack_id_i].wdata;
-    assign ack_wuser_o = entries_q[ack_id_i].wuser;
     assign ack_be_o    = entries_q[ack_id_i].be;
+    assign ack_wuser_o = HPDcacheCfg.u.userEn ? entries_q[ack_id_i].wuser : '0;
 
     always_comb begin
         valid_d   = valid_q;
@@ -74,8 +74,8 @@ import hpdcache_pkg::*;
         if (alloc_i) begin
             valid_d  [alloc_id_o]       = 1'b1;
             entries_d[alloc_id_o].wdata = alloc_wdata_i;
-            entries_d[alloc_id_o].wuser = alloc_wuser_i;
             entries_d[alloc_id_o].be    = alloc_be_i;
+            if (HPDcacheCfg.u.userEn) entries_d[alloc_id_o].wuser = alloc_wuser_i;
         end
     end
 
