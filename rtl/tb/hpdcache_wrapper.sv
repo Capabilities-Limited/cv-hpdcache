@@ -34,6 +34,7 @@ import hpdcache_pkg::*;
         nRequesters: (4'b1 << `CONF_HPDCACHE_REQ_SRC_ID_WIDTH),
         paWidth: `CONF_HPDCACHE_PA_WIDTH,
         wordWidth: `CONF_HPDCACHE_WORD_WIDTH,
+        wordUserWidth: `CONF_HPDCACHE_WORD_USER_WIDTH,
         sets: `CONF_HPDCACHE_SETS,
         ways: `CONF_HPDCACHE_WAYS,
         clWords: `CONF_HPDCACHE_CL_WORDS,
@@ -66,6 +67,7 @@ import hpdcache_pkg::*;
         memDataWidth: `CONF_HPDCACHE_MEM_DATA_WIDTH,
         wtEn: `CONF_HPDCACHE_WT_ENABLE,
         wbEn: `CONF_HPDCACHE_WB_ENABLE,
+        userEn: `CONF_HPDCACHE_USER_ENABLE,
         lowLatency: `CONF_HPDCACHE_LOW_LATENCY
     },
 
@@ -241,7 +243,8 @@ import hpdcache_pkg::*;
     assign mem_resp_read.mem_resp_r_error = mem_resp_read_error_i,
            mem_resp_read.mem_resp_r_id    = mem_resp_read_id_i,
            mem_resp_read.mem_resp_r_data  = mem_resp_read_data_i,
-           mem_resp_read.mem_resp_r_last  = mem_resp_read_last_i;
+           mem_resp_read.mem_resp_r_last  = mem_resp_read_last_i,
+           mem_resp_read.mem_resp_r_user  = '0;
 
     assign mem_req_write_addr_o      = mem_req_write.mem_req_addr,
            mem_req_write_len_o       = mem_req_write.mem_req_len,
