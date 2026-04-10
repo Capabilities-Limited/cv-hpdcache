@@ -362,9 +362,9 @@ import hpdcache_pkg::*;
         refill_cnt_d            = refill_cnt_q;
 
         refill_dirty_wdata      = refill_dirty_wdata_q;
-        refill_dirty_wuser      = refill_dirty_wuser_q;
         refill_dirty_be         = refill_dirty_be_q;
         refill_dirty_valid      = 1'b0;
+        refill_dirty_wuser      = HPDcacheCfg.u.userEn ? refill_dirty_wuser_q : '0;
 
         inval_check_dir_o       = 1'b0;
         inval_write_dir_o       = 1'b0;
@@ -461,16 +461,16 @@ import hpdcache_pkg::*;
                     is_prefetch = mshr_ack_is_prefetch;
                     refill_dirty = mshr_ack_dirty;
                     refill_dirty_wdata = mshr_ack_wdata;
-                    refill_dirty_wuser = mshr_ack_wuser;
                     refill_dirty_be = mshr_ack_be;
+                    refill_dirty_wuser = HPDcacheCfg.u.userEn ? mshr_ack_wuser : '0;
                 end else begin
                     refill_set_o = refill_set_q;
                     refill_way = refill_way_q;
                     is_prefetch = refill_is_prefetch_q;
                     refill_dirty = refill_dirty_q;
                     refill_dirty_wdata = refill_dirty_wdata_q;
-                    refill_dirty_wuser = refill_dirty_wuser_q;
                     refill_dirty_be = refill_dirty_be_q;
+                    refill_dirty_wuser = HPDcacheCfg.u.userEn ? refill_dirty_wuser_q : '0;
                 end
                 refill_write_data_o = ~refill_is_error_o;
 
@@ -599,11 +599,11 @@ import hpdcache_pkg::*;
     };
 
     assign refill_core_rsp.rdata   = refill_core_rsp_rdata;
-    assign refill_core_rsp.ruser   = refill_core_rsp_ruser;
     assign refill_core_rsp.sid     = refill_core_rsp_sid;
     assign refill_core_rsp.tid     = refill_core_rsp_tid;
     assign refill_core_rsp.error   = refill_core_rsp_error;
     assign refill_core_rsp.aborted = 1'b0;
+    assign refill_core_rsp.ruser   = HPDcacheCfg.u.userEn ? refill_core_rsp_ruser : '0;
 
     hpdcache_fifo_reg #(
         .FIFO_DEPTH  (1),
@@ -630,20 +630,24 @@ import hpdcache_pkg::*;
             .sel_i       (refill_core_rsp_word[0 +: $clog2(REFILL_REQ_RATIO)]),
             .data_o      (refill_core_rsp_rdata)
         );
-        hpdcache_mux #(
-            .NINPUT      (REFILL_REQ_RATIO),
-            .DATA_WIDTH  (HPDcacheCfg.u.reqWord*HPDcacheCfg.u.wordUserWidth)
-        ) user_read_rsp_mux_i(
-            .data_i      (refill_user_o),
-            .sel_i       (refill_core_rsp_word[0 +: $clog2(REFILL_REQ_RATIO)]),
-            .data_o      (refill_core_rsp_ruser)
-        );
+        if (HPDcacheCfg.u.userEn) begin : gen_refill_core_rsp_ruser_useren
+            hpdcache_mux #(
+                .NINPUT      (REFILL_REQ_RATIO),
+                .DATA_WIDTH  (HPDcacheCfg.u.reqWord*HPDcacheCfg.u.wordUserWidth)
+            ) user_read_rsp_mux_i(
+                .data_i      (refill_user_o),
+                .sel_i       (refill_core_rsp_word[0 +: $clog2(REFILL_REQ_RATIO)]),
+                .data_o      (refill_core_rsp_ruser)
+            );
+       end else begin : gen_refill_core_rsp_ruser_default
+           assign refill_core_rsp_ruser = '0;
+       end
     end
 
     //  refill's width is equal to the width of the core's interface
     else begin : gen_core_rsp_eqsize
         assign refill_core_rsp_rdata = refill_data_o;
-        assign refill_core_rsp_ruser = refill_user_o;
+        assign refill_core_rsp_ruser = HPDcacheCfg.u.userEn ? refill_user_o : '0;
     end
 
     /* FIXME: when multiple chunks, in case of error, the error bit is not
@@ -690,24 +694,28 @@ import hpdcache_pkg::*;
         .rlast_o(/* unused */)
     );
 
-    hpdcache_data_resize #(
-        .WR_WIDTH (HPDcacheCfg.u.wordUserWidth*HPDcacheCfg.wordsPerMemFlit),
-        .RD_WIDTH (HPDcacheCfg.u.wordUserWidth*ACCESS_MEM_RATIO),
-        .DEPTH    (HPDcacheCfg.u.refillFifoDepth)
-    ) i_user_resize(
-        .clk_i,
-        .rst_ni,
+    if (HPDcacheCfg.u.userEn) begin : gen_refill_fifo_resp_data_ruser_useren
+        hpdcache_data_resize #(
+            .WR_WIDTH (HPDcacheCfg.u.wordUserWidth*HPDcacheCfg.wordsPerMemFlit),
+            .RD_WIDTH (HPDcacheCfg.u.wordUserWidth*ACCESS_MEM_RATIO),
+            .DEPTH    (HPDcacheCfg.u.refillFifoDepth)
+        ) i_user_resize(
+            .clk_i,
+            .rst_ni,
 
-        .w_i    (refill_fifo_resp_data_w),
-        .wok_o  (/* use refill_fifo_resp_data_wok */),
-        .wdata_i(mem_resp_i.mem_resp_r_user),
-        .wlast_i(mem_resp_i.mem_resp_r_last),
+            .w_i    (refill_fifo_resp_data_w),
+            .wok_o  (/* use refill_fifo_resp_data_wok */),
+            .wdata_i(mem_resp_i.mem_resp_r_user),
+            .wlast_i(mem_resp_i.mem_resp_r_last),
 
-        .r_i    (refill_fifo_resp_data_r),
-        .rok_o  (/* unused */),
-        .rdata_o(refill_fifo_resp_data_ruser),
-        .rlast_o(/* unused */)
-    );
+            .r_i    (refill_fifo_resp_data_r),
+            .rok_o  (/* unused */),
+            .rdata_o(refill_fifo_resp_data_ruser),
+            .rlast_o(/* unused */)
+        );
+    end else begin : gen_refill_fifo_resp_data_ruser_default
+        assign refill_fifo_resp_data_ruser = '0;
+    end
 
     //  Refill data multiplexing logic
     //  Multiplexing has a byte granularity
@@ -716,7 +724,8 @@ import hpdcache_pkg::*;
     logic [HPDcacheCfg.accessBytes-1:0][7:0] clean_data;
     hpdcache_refill_user_t clean_user;
     assign clean_data = refill_fifo_resp_data_rdata;
-    assign clean_user = and_reduce_user(refill_fifo_resp_data_ruser); // In case we have replicated user bits.
+    // And reduce in case we have replicated user bits.
+    assign clean_user = HPDcacheCfg.u.userEn ? and_reduce_user(refill_fifo_resp_data_ruser) : '0;
 
     if (HPDcacheCfg.u.wbEn) begin : gen_refill_dirty_data
         logic [HPDcacheCfg.accessBytes-1:0]      dirty_be;
@@ -726,7 +735,7 @@ import hpdcache_pkg::*;
 
         assign dirty_be   = {REFILL_REQ_RATIO{refill_dirty_be}};
         assign dirty_data = {REFILL_REQ_RATIO{refill_dirty_wdata}};
-        assign dirty_user = {REFILL_REQ_RATIO{refill_dirty_wuser}};
+        assign dirty_user = HPDcacheCfg.u.userEn ? {REFILL_REQ_RATIO{refill_dirty_wuser}} : '0;
 
         //  Iterate on all `accessBytes` bytes
         for (genvar i = 0; i < HPDcacheCfg.accessBytes; i++) begin : gen_refill_mux
@@ -750,8 +759,12 @@ import hpdcache_pkg::*;
             assign refill_data[i] = dirty_sel ? dirty_data[i] : clean_data[i];
         end
         assign refill_data_o = hpdcache_refill_data_t'(refill_data);
-        // XXX TODO This assumes exactly one user field per 'accessBytes'
-        assign refill_user_o = (refill_dirty_valid && (dirty_be != 0)) ? dirty_user : clean_user;
+        if (HPDcacheCfg.u.userEn) begin : gen_refill_user_o_useren
+            // XXX TODO This assumes exactly one user field per 'accessBytes'
+            assign refill_user_o = (refill_dirty_valid && (dirty_be != 0)) ? dirty_user : clean_user;
+        end else begin : gen_refill_user_o_default
+            assign refill_user_o = '0;
+        end
 
     end else begin : gen_refill_no_dirty_data
         // Reshape data to the expected type
@@ -804,7 +817,7 @@ import hpdcache_pkg::*;
             refill_wback_q <= mshr_ack_wback;
             refill_dirty_q <= mshr_ack_dirty;
             refill_dirty_wdata_q <= mshr_ack_wdata;
-            refill_dirty_wuser_q <= mshr_ack_wuser;
+            refill_dirty_wuser_q <= HPDcacheCfg.u.userEn ? mshr_ack_wuser : 1'b0;
             refill_dirty_be_q <= mshr_ack_be;
             refill_core_rsp_word_q <= mshr_ack_word;
         end

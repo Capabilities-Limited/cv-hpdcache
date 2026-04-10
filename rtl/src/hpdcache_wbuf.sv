@@ -164,8 +164,10 @@ import hpdcache_pkg::*;
             input  wbuf_user_buf_t wbuf_new_user,
             input  wbuf_be_buf_t   wbuf_new_be);
         for (int unsigned w = 0; w < WBUF_DATA_NWORDS; w++) begin
-          wbuf_ret_user[w] = |wbuf_new_be[w] ? wbuf_new_user[w]
-                                             : wbuf_old_user[w];
+          if (HPDcacheCfg.u.userEn) begin
+            wbuf_ret_user[w] = |wbuf_new_be[w] ? wbuf_new_user[w]
+                                               : wbuf_old_user[w];
+          end else wbuf_ret_user[w] = '0;
         end
     endfunction
 
@@ -290,8 +292,8 @@ import hpdcache_pkg::*;
     always_comb
     begin : wbuf_write_data_comb
         for (int unsigned w = 0; w < WBUF_DATA_NWORDS; w++) begin
-            write_user[w] = write_user_i;
             write_data[w] = write_data_i;
+            write_user[w] = HPDcacheCfg.u.userEn ? write_user_i : '0;
         end
     end
 
@@ -659,9 +661,9 @@ import hpdcache_pkg::*;
     );
 
     assign send_tag        = wbuf_addr_t'(send_data_q.data_tag);
-    assign send_user       = wbuf_data_q[send_data_q.data_ptr].user;
     assign send_data       = wbuf_data_q[send_data_q.data_ptr].data;
     assign send_be         = wbuf_data_q[send_data_q.data_ptr].be;
+    assign send_user       = HPDcacheCfg.u.userEn ? wbuf_data_q[send_data_q.data_ptr].user : '0;
 
     //    Meta-data channel
     assign send_meta_valid = (|wbuf_dir_pend_bv) & send_data_ready;
@@ -708,14 +710,14 @@ import hpdcache_pkg::*;
             .data_o      (mem_req_be)
         );
 
-        assign mem_req_write_data_o.mem_req_w_user = {WBUF_MEM_DATA_RATIO{send_user}},
-               mem_req_write_data_o.mem_req_w_data = {WBUF_MEM_DATA_RATIO{send_data}},
-               mem_req_write_data_o.mem_req_w_be   = mem_req_be;
+        assign mem_req_write_data_o.mem_req_w_data = {WBUF_MEM_DATA_RATIO{send_data}},
+               mem_req_write_data_o.mem_req_w_be   = mem_req_be,
+               mem_req_write_data_o.mem_req_w_user = HPDcacheCfg.u.userEn ? {WBUF_MEM_DATA_RATIO{send_user}} : '0;
 
     end else if (WBUF_MEM_DATA_RATIO == 1) begin : gen_wbuf_data_forwarding
-        assign mem_req_write_data_o.mem_req_w_user = send_user,
-               mem_req_write_data_o.mem_req_w_data = send_data,
-               mem_req_write_data_o.mem_req_w_be   = send_be;
+        assign mem_req_write_data_o.mem_req_w_data = send_data,
+               mem_req_write_data_o.mem_req_w_be   = send_be,
+               mem_req_write_data_o.mem_req_w_user = HPDcacheCfg.u.userEn ? send_user : '0;
     end
 
     assign mem_resp_write_ready_o = 1'b1;
