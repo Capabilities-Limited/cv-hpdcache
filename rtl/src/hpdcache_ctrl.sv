@@ -559,8 +559,7 @@ import hpdcache_pkg::*;
     //         requester in stage 1
     assign st1_req_tag = st1_req_q.req.phys_indexed ? st1_req_q.req.addr_tag : core_req_tag_i;
 
-    always_comb
-    begin : st1_req_comb
+    always_comb begin : st1_req_comb
         st1_req = st1_req_q;
         if (!st1_req_q.from_rtab) begin
             st1_req.req.addr_tag = st1_req_tag;
@@ -1145,9 +1144,9 @@ import hpdcache_pkg::*;
     //  {{{
     assign wbuf_write_addr_o = st1_req_addr;
     assign wbuf_write_data_o = st1_req.req.wdata;
-    assign wbuf_write_user_o = st1_req.req.wuser;
     assign wbuf_write_be_o   = st1_req.req.be;
     assign wbuf_flush_all_o  = cmo_wbuf_flush_all_i | uc_wbuf_flush_all_i | wbuf_flush_i;
+    assign wbuf_write_user_o = HPDcacheCfg.u.userEn ? st1_req.req.wuser : '0;
     //  }}}
 
     //  Miss handler outputs
@@ -1162,13 +1161,13 @@ import hpdcache_pkg::*;
     assign st2_mshr_alloc_word_o        = st2_mshr_alloc_addr_q[HPDcacheCfg.wordByteIdxWidth +:
                                                                 HPDcacheCfg.clWordIdxWidth];
     assign st2_mshr_alloc_wdata_o       = st2_mshr_alloc_wdata_q;
-    assign st2_mshr_alloc_wuser_o       = st2_mshr_alloc_wuser_q;
     assign st2_mshr_alloc_be_o          = st2_mshr_alloc_be_q;
     assign st2_mshr_alloc_victim_way_o  = st2_mshr_alloc_victim_way_q;
     assign st2_mshr_alloc_need_rsp_o    = st2_mshr_alloc_need_rsp_q;
     assign st2_mshr_alloc_is_prefetch_o = st2_mshr_alloc_is_prefetch_q;
     assign st2_mshr_alloc_wback_o       = st2_mshr_alloc_wback_q;
     assign st2_mshr_alloc_dirty_o       = st2_mshr_alloc_dirty_q;
+    assign st2_mshr_alloc_wuser_o       = HPDcacheCfg.u.userEn ? st2_mshr_alloc_wuser_q : '0;
     //  }}}
 
     //  Uncacheable request handler outputs
@@ -1179,7 +1178,7 @@ import hpdcache_pkg::*;
     assign uc_req_addr_o             = st1_req_addr;
     assign uc_req_size_o             = st1_req.req.size;
     assign uc_req_data_o             = st1_req.req.wdata;
-    assign uc_req_user_o             = st1_req.req.wuser;
+    assign uc_req_user_o             = HPDcacheCfg.u.userEn ? st1_req.req.wuser : '0;
     assign uc_req_be_o               = st1_req.req.be;
     assign uc_req_uc_o               = st1_req_is_uncacheable;
     assign uc_req_sid_o              = st1_req.req.sid;
@@ -1716,10 +1715,6 @@ import hpdcache_pkg::*;
                                 (cmo_core_rsp_valid_i    ? cmo_core_rsp_i.rdata :
                                 (uc_core_rsp_valid_i     ? uc_core_rsp_i.rdata :
                                                            data_req_read_data)));
-    assign core_rsp_o.ruser   = (refill_core_rsp_valid_i ? refill_core_rsp_i.ruser :
-                                (cmo_core_rsp_valid_i    ? cmo_core_rsp_i.ruser :
-                                (uc_core_rsp_valid_i     ? uc_core_rsp_i.ruser :
-                                                           data_req_read_user)));
     assign core_rsp_o.sid     = (refill_core_rsp_valid_i ? refill_core_rsp_i.sid :
                                 (cmo_core_rsp_valid_i    ? cmo_core_rsp_i.sid :
                                 (uc_core_rsp_valid_i     ? uc_core_rsp_i.sid :
@@ -1733,6 +1728,14 @@ import hpdcache_pkg::*;
                                 (uc_core_rsp_valid_i     ? uc_core_rsp_i.error :
                                                            core_rsp_error)));
     assign core_rsp_o.aborted = core_rsp_aborted;
+    if (HPDcacheCfg.u.userEn) begin : gen_core_rsp_o_ruser_useren
+        assign core_rsp_o.ruser = (refill_core_rsp_valid_i ? refill_core_rsp_i.ruser :
+                                  (cmo_core_rsp_valid_i    ? cmo_core_rsp_i.ruser :
+                                  (uc_core_rsp_valid_i     ? uc_core_rsp_i.ruser :
+                                                             data_req_read_user)));
+    end else begin : gen_core_rsp_o_ruser_default
+        assign core_rsp_o.ruser = '0;
+    end
     //  }}}
 
     //  Assertions
