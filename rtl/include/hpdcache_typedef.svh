@@ -24,22 +24,26 @@
         logic                                 mem_req_cacheable; \
     }
 
-`define HPDCACHE_DECL_MEM_RESP_R_T(__id_t, __user_t, __data_t) \
+`define HPDCACHE_USEREN_DECL_MEM_RESP_R_T(__id_t, __data_t, __user_t) \
     struct packed { \
         hpdcache_pkg::hpdcache_mem_error_e    mem_resp_r_error; \
         __id_t                                mem_resp_r_id; \
-        __user_t                              mem_resp_r_user; \
         __data_t                              mem_resp_r_data; \
         logic                                 mem_resp_r_last; \
+        __user_t                              mem_resp_r_user; \
     }
+`define HPDCACHE_DECL_MEM_RESP_R_T(__id_t, __data_t) \
+    `HPDCACHE_USEREN_DECL_MEM_RESP_R_T(__id_t, __data_t, logic[0:0])
 
-`define HPDCACHE_DECL_MEM_REQ_W_T(__user_t, __data_t, __be_t) \
+`define HPDCACHE_USEREN_DECL_MEM_REQ_W_T(__data_t, __be_t, __user_t) \
     struct packed { \
-        __user_t                              mem_req_w_user; \
         __data_t                              mem_req_w_data; \
         __be_t                                mem_req_w_be; \
         logic                                 mem_req_w_last; \
+        __user_t                              mem_req_w_user; \
     }
+`define HPDCACHE_DECL_MEM_REQ_W_T(__data_t, __be_t) \
+    `HPDCACHE_USEREN_DECL_MEM_REQ_W_T(__data_t, __be_t, logic[0:0])
 
 `define HPDCACHE_DECL_MEM_RESP_W_T(__id_t) \
     struct packed { \
@@ -48,30 +52,37 @@
         __id_t                                mem_resp_w_id; \
     }
 
-`define HPDCACHE_TYPEDEF_MEM_ATTR_T(__addr_t, __id_t, __user_t, __data_t, __be_t, __params) \
-    typedef logic             [ __params.u.wordUserWidth-1:0] __word_user_mem_t; \
-    typedef __word_user_mem_t [ __params.wordsPerMemFlit-1:0] __user_t; \
+`define HPDCACHE_USEREN_TYPEDEF_MEM_ATTR_T(__addr_t, __id_t, __data_t, __be_t, __user_t, __params) \
     typedef logic             [  __params.u.memAddrWidth-1:0] __addr_t; \
     typedef logic             [    __params.u.memIdWidth-1:0] __id_t; \
     typedef logic             [  __params.u.memDataWidth-1:0] __data_t; \
-    typedef logic             [__params.u.memDataWidth/8-1:0] __be_t
+    typedef logic             [__params.u.memDataWidth/8-1:0] __be_t; \
+    typedef logic             [ __params.u.wordUserWidth-1:0] __word_user_mem_t; \
+    typedef __word_user_mem_t [ __params.wordsPerMemFlit-1:0] __user_t
+`define HPDCACHE_TYPEDEF_MEM_ATTR_T(__addr_t, __id_t, __data_t, __be_t, __params) \
+    `HPDCACHE_USEREN_TYPEDEF_MEM_ATTR_T(__addr_t, __id_t, __data_t, __be_t, unused_user_mem_attr_t, __params)
 
 `define HPDCACHE_TYPEDEF_MEM_REQ_T(__name__, __addr_t, __id_t) \
     typedef `HPDCACHE_DECL_MEM_REQ_T(__addr_t, __id_t) __name__
 
-`define HPDCACHE_TYPEDEF_MEM_RESP_R_T(__name__, __id_t, __user_t, __data_t) \
-    typedef `HPDCACHE_DECL_MEM_RESP_R_T(__id_t, __user_t, __data_t) __name__
+`define HPDCACHE_USEREN_TYPEDEF_MEM_RESP_R_T(__name__, __id_t, __data_t, __user_t) \
+    typedef `HPDCACHE_USEREN_DECL_MEM_RESP_R_T(__id_t, __data_t, __user_t) __name__
 
-`define HPDCACHE_TYPEDEF_MEM_REQ_W_T(__name__, __user_t, __data_t, __be_t) \
-    typedef `HPDCACHE_DECL_MEM_REQ_W_T(__user_t, __data_t, __be_t) __name__
+`define HPDCACHE_TYPEDEF_MEM_RESP_R_T(__name__, __id_t, __data_t) \
+    `HPDCACHE_USEREN_TYPEDEF_MEM_RESP_R_T(__name__, __id_t, __data_t, logic[0:0])
+
+`define HPDCACHE_USEREN_TYPEDEF_MEM_REQ_W_T(__name__, __data_t, __be_t, __user_t) \
+    typedef `HPDCACHE_USEREN_DECL_MEM_REQ_W_T(__data_t, __be_t, __user_t) __name__
+
+`define HPDCACHE_TYPEDEF_MEM_REQ_W_T(__name__, __data_t, __be_t) \
+    `HPDCACHE_USEREN_TYPEDEF_MEM_REQ_W_T(__name__, __data_t, __be_t, logic[0:0])
 
 `define HPDCACHE_TYPEDEF_MEM_RESP_W_T(__name__, __id_t) \
     typedef `HPDCACHE_DECL_MEM_RESP_W_T(__id_t) __name__
 
-`define HPDCACHE_DECL_REQ_T(__offset_t, __user_t, __data_t, __be_t, __sid_t, __tid_t, __tag_t) \
+`define HPDCACHE_USEREN_DECL_REQ_T(__offset_t, __data_t, __be_t, __sid_t, __tid_t, __tag_t, __user_t) \
     struct packed { \
         __offset_t                        addr_offset; \
-        __user_t                          wuser; \
         __data_t                          wdata; \
         hpdcache_pkg::hpdcache_req_op_t   op; \
         __be_t                            be; \
@@ -82,34 +93,51 @@
         logic                             phys_indexed; \
         __tag_t                           addr_tag; \
         hpdcache_pkg::hpdcache_pma_t      pma; \
+        __user_t                          wuser; \
     }
 
-`define HPDCACHE_TYPEDEF_REQ_ATTR_T(__offset_t, __word_t, __word_be_t, __user_t, __data_t, __be_t, __sid_t, __tid_t, __tag_t, __params) \
+`define HPDCACHE_DECL_REQ_T(__offset_t, __data_t, __be_t, __sid_t, __tid_t, __tag_t) \
+    `HPDCACHE_USEREN_DECL_REQ_T(__offset_t, __data_t, __be_t, __sid_t, __tid_t, __tag_t, logic[0:0])
+
+`define HPDCACHE_USEREN_TYPEDEF_REQ_ATTR_T(__offset_t, __word_t, __word_be_t, __data_t, __be_t, __sid_t, __tid_t, __tag_t, __user_t, __params) \
     typedef logic             [         __params.tagWidth-1:0] __tag_t; \
     typedef logic             [      __params.u.wordWidth-1:0] __word_t; \
     typedef logic             [    __params.u.wordWidth/8-1:0] __word_be_t; \
     typedef logic             [   __params.reqOffsetWidth-1:0] __offset_t; \
     typedef __word_t          [       __params.u.reqWords-1:0] __data_t; \
     typedef __word_be_t       [       __params.u.reqWords-1:0] __be_t; \
-    typedef logic             [  __params.u.wordUserWidth-1:0] __word_user_req_t; \
-    typedef __word_user_req_t [       __params.u.reqWords-1:0] __user_t; \
     typedef logic             [  __params.u.reqSrcIdWidth-1:0] __sid_t; \
-    typedef logic             [__params.u.reqTransIdWidth-1:0] __tid_t
+    typedef logic             [__params.u.reqTransIdWidth-1:0] __tid_t; \
+    typedef logic             [  __params.u.wordUserWidth-1:0] __word_user_req_t; \
+    typedef __word_user_req_t [       __params.u.reqWords-1:0] __user_t
 
-`define HPDCACHE_TYPEDEF_REQ_T(__name__, __offset_t, __user_t, __data_t, __be_t, __sid_t, __tid_t, __tag_t) \
-    typedef `HPDCACHE_DECL_REQ_T(__offset_t, __user_t, __data_t, __be_t, __sid_t, __tid_t, __tag_t) __name__
+`define HPDCACHE_TYPEDEF_REQ_ATTR_T(__offset_t, __word_t, __word_be_t, __data_t, __be_t, __sid_t, __tid_t, __tag_t, __params) \
+    `HPDCACHE_USEREN_TYPEDEF_REQ_ATTR_T(__offset_t, __word_t, __word_be_t, __data_t, __be_t, __sid_t, __tid_t, __tag_t, unused_user_req_attr_t, __params)
 
-`define HPDCACHE_DECL_RSP_T(__user_t, __data_t, __sid_t, __tid_t) \
+`define HPDCACHE_USEREN_TYPEDEF_REQ_T(__name__, __offset_t, __data_t, __be_t, __sid_t, __tid_t, __tag_t, __user_t) \
+    typedef `HPDCACHE_USEREN_DECL_REQ_T(__offset_t, __data_t, __be_t, __sid_t, __tid_t, __tag_t, __user_t) __name__
+
+`define HPDCACHE_TYPEDEF_REQ_T(__name__, __offset_t, __data_t, __be_t, __sid_t, __tid_t, __tag_t) \
+    `HPDCACHE_USEREN_TYPEDEF_REQ_T(__name__, __offset_t, __data_t, __be_t, __sid_t, __tid_t, __tag_t, logic[0:0])
+
+`define HPDCACHE_USEREN_DECL_RSP_T(__data_t, __sid_t, __tid_t, __user_t) \
     struct packed { \
-        __user_t ruser; \
         __data_t rdata; \
         __sid_t  sid; \
         __tid_t  tid; \
         logic    error; \
         logic    aborted; \
+        __user_t ruser; \
     }
 
-`define HPDCACHE_TYPEDEF_RSP_T(__name__, __user_t, __data_t, __sid_t, __tid_t) \
-    typedef `HPDCACHE_DECL_RSP_T(__user_t, __data_t, __sid_t, __tid_t) __name__
+`define HPDCACHE_DECL_RSP_T(__data_t, __sid_t, __tid_t) \
+    `HPDCACHE_USEREN_DECL_RSP_T(__data_t, __sid_t, __tid_t, logic[0:0])
+
+
+`define HPDCACHE_USEREN_TYPEDEF_RSP_T(__name__, __data_t, __sid_t, __tid_t, __user_t) \
+    typedef `HPDCACHE_USEREN_DECL_RSP_T(__data_t, __sid_t, __tid_t, __user_t) __name__
+
+`define HPDCACHE_TYPEDEF_RSP_T(__name__, __data_t, __sid_t, __tid_t) \
+    `HPDCACHE_USEREN_TYPEDEF_RSP_T(__name__, __data_t, __sid_t, __tid_t, logic[0:0])
 
 `endif //  __HPDCACHE_TYPEDEF_SVH__
