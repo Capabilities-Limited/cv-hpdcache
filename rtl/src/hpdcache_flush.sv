@@ -360,24 +360,28 @@ import hpdcache_pkg::*;
         .rdata_o        (flush_mem_req_rdata),
         .rlast_o        (/* open */)
     );
-    hpdcache_data_resize #(
-        .WR_WIDTH       (HPDcacheCfg.u.wordUserWidth*ACCESS_MEM_RATIO),
-        .RD_WIDTH       (HPDcacheCfg.u.wordUserWidth*HPDcacheCfg.wordsPerMemFlit),
-        .DEPTH          (HPDcacheCfg.u.flushFifoDepth) // XXX consider deriving from ratio to data width
-    ) flush_user_resizer_i(
-        .clk_i,
-        .rst_ni,
+    if (HPDcacheCfg.u.userEn) begin : gen_flush_mem_req_ruser_useren
+        hpdcache_data_resize #(
+            .WR_WIDTH       (HPDcacheCfg.u.wordUserWidth*ACCESS_MEM_RATIO),
+            .RD_WIDTH       (HPDcacheCfg.u.wordUserWidth*HPDcacheCfg.wordsPerMemFlit),
+            .DEPTH          (HPDcacheCfg.u.flushFifoDepth) // XXX consider deriving from ratio to data width
+        ) flush_user_resizer_i(
+            .clk_i,
+            .rst_ni,
 
-        .w_i            (flush_resizer_w),
-        .wok_o          (/* synced with data signals */),
-        .wdata_i        ({ACCESS_MEM_RATIO{flush_data_read_user_i}}),
-        .wlast_i        (flush_resizer_wlast),
+            .w_i            (flush_resizer_w),
+            .wok_o          (/* synced with data signals */),
+            .wdata_i        ({ACCESS_MEM_RATIO{flush_data_read_user_i}}),
+            .wlast_i        (flush_resizer_wlast),
 
-        .r_i            (mem_req_write_data_ready_i),
-        .rok_o          (/* synced with data signals */),
-        .rdata_o        (flush_mem_req_ruser),
-        .rlast_o        (/* open */)
-    );
+            .r_i            (mem_req_write_data_ready_i),
+            .rok_o          (/* synced with data signals */),
+            .rdata_o        (flush_mem_req_ruser),
+            .rlast_o        (/* open */)
+        );
+    end else begin : gen_flush_mem_req_ruser_default
+        assign flush_mem_req_ruser = '0;
+    end
 
     //  Logic to detect the end of a packet
     //

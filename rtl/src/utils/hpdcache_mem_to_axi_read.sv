@@ -29,7 +29,8 @@ import hpdcache_pkg::*;
     parameter type hpdcache_mem_req_t    = logic,
     parameter type hpdcache_mem_resp_r_t = logic,
     parameter type ar_chan_t = logic,
-    parameter type r_chan_t  = logic
+    parameter type r_chan_t  = logic,
+    parameter bit  userEn = 1'b0
 )
 (
     output logic                          req_ready_o,
@@ -90,7 +91,7 @@ import hpdcache_pkg::*;
             resp_o.mem_resp_r_error = resp,
             resp_o.mem_resp_r_id    = axi_r_i.id,
             resp_o.mem_resp_r_data  = axi_r_i.data,
-            resp_o.mem_resp_r_user  = axi_r_i.user,
+            resp_o.mem_resp_r_user  = userEn ? axi_r_i.user : '0,
             resp_o.mem_resp_r_last  = axi_r_i.last;
 
 endmodule

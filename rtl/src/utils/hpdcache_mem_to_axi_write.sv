@@ -31,7 +31,8 @@ import hpdcache_pkg::*;
     parameter type hpdcache_mem_resp_w_t = logic,
     parameter type aw_chan_t = logic,
     parameter type w_chan_t = logic,
-    parameter type b_chan_t = logic
+    parameter type b_chan_t = logic,
+    parameter bit  userEn = 1'b0
 )
 (
     output logic                          req_ready_o,
@@ -137,7 +138,7 @@ import hpdcache_pkg::*;
             axi_w_o.data                    = req_data_i.mem_req_w_data,
             axi_w_o.strb                    = req_data_i.mem_req_w_be,
             axi_w_o.last                    = req_data_i.mem_req_w_last,
-            axi_w_o.user                    = req_data_i.mem_req_w_user;
+            axi_w_o.user                    = userEn ? req_data_i.mem_req_w_user : '0;
 
     assign  axi_b_ready_o                   = resp_ready_i,
             resp_valid_o                    = axi_b_valid_i,
