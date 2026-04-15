@@ -26,10 +26,13 @@
  */
 module hpdcache_amo
 import hpdcache_pkg::*;
+    //  Parameters
+    //  {{{
 #(
     parameter int unsigned DATA_WIDTH = 64,
     parameter int unsigned ARITH_WIDTH = DATA_WIDTH,
-    parameter type user_t = logic
+    parameter type user_t = logic,
+    parameter bit userEn = 1'b0
 )
 //  Ports
 //  {{{
@@ -49,8 +52,7 @@ import hpdcache_pkg::*;
     logic signed [ARITH_WIDTH-1:0] sum;
     logic        [ARITH_WIDTH-1:0] ld_data_unsigned;
     logic        [ARITH_WIDTH-1:0] st_data_unsigned;
-    logic        [ARITH_WIDTH-1:0] result;
-    logic        [ARITH_WIDTH-1:0] result_hi;
+    logic        [ARITH_WIDTH-1:0] arith_result;
     logic ugt, sgt;
 
     assign ld_data_signed = ld_data_i[ARITH_WIDTH-1:0],
@@ -64,30 +66,36 @@ import hpdcache_pkg::*;
 
     always_comb
     begin : amo_compute_comb
+        // Artitmetic ops
         unique case (1'b1)
-            op_i.is_amo_lr   : result = ld_data_unsigned;
-            op_i.is_amo_sc   : result = st_data_unsigned;
-            op_i.is_amo_swap : result = st_data_unsigned;
-            op_i.is_amo_add  : result = sum;
-            op_i.is_amo_and  : result = ld_data_unsigned & st_data_unsigned;
-            op_i.is_amo_or   : result = ld_data_unsigned | st_data_unsigned;
-            op_i.is_amo_xor  : result = ld_data_unsigned ^ st_data_unsigned;
-            op_i.is_amo_max  : result = sgt ? ld_data_unsigned : st_data_unsigned;
-            op_i.is_amo_maxu : result = ugt ? ld_data_unsigned : st_data_unsigned;
-            op_i.is_amo_min  : result = sgt ? st_data_unsigned : ld_data_unsigned;
-            op_i.is_amo_minu : result = ugt ? st_data_unsigned : ld_data_unsigned;
-            default          : result = '0;
+            op_i.is_amo_add  : arith_result = sum;
+            op_i.is_amo_and  : arith_result = ld_data_unsigned & st_data_unsigned;
+            op_i.is_amo_or   : arith_result = ld_data_unsigned | st_data_unsigned;
+            op_i.is_amo_xor  : arith_result = ld_data_unsigned ^ st_data_unsigned;
+            op_i.is_amo_max  : arith_result = sgt ? ld_data_unsigned : st_data_unsigned;
+            op_i.is_amo_maxu : arith_result = ugt ? ld_data_unsigned : st_data_unsigned;
+            op_i.is_amo_min  : arith_result = sgt ? st_data_unsigned : ld_data_unsigned;
+            op_i.is_amo_minu : arith_result = ugt ? st_data_unsigned : ld_data_unsigned;
+            default          : arith_result = '0;
         endcase
+        // Non-arithmetic ops
         unique case (1'b1)
-            op_i.is_amo_lr   : result_hi = ld_data_i[DATA_WIDTH-1:ARITH_WIDTH];
-            op_i.is_amo_sc   : result_hi = st_data_i[DATA_WIDTH-1:ARITH_WIDTH];
-            op_i.is_amo_swap : result_hi = st_data_i[DATA_WIDTH-1:ARITH_WIDTH];
-            default          : result_hi = '0;
-        endcase
-        result_o = {result_hi, result};
-        unique case (1'b1)
-            op_i.is_amo_lr   : user_o = ld_user_i;
-            default          : user_o = st_user_i;
+            op_i.is_amo_lr : begin
+                result_o = ld_data_i;
+                user_o = userEn ? ld_user_i : '0;
+            end
+            op_i.is_amo_sc : begin
+                result_o = st_data_i;
+                user_o = userEn ? st_user_i : '0;
+            end
+            op_i.is_amo_swap : begin
+                result_o = st_data_i;
+                user_o = userEn ? st_user_i : '0;
+            end
+            default : begin
+                result_o = {{DATA_WIDTH - ARITH_WIDTH{1'b0}}, arith_result};
+                user_o = '0;
+            end
         endcase
     end
 

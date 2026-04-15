@@ -465,6 +465,8 @@ package hpdcache_pkg;
         bit wbEn;
         //  Whether to enable user bit handling
         bit userEn;
+        //  Whether to enable capability atomic handling
+        bit capAmoEn;
         //  Enable fast loads.
         //  Perform loads in 1 cycle at the cost of structural hazard for stores
         bit lowLatency;

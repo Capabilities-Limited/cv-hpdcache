@@ -68,6 +68,7 @@ import hpdcache_pkg::*;
         wtEn: `CONF_HPDCACHE_WT_ENABLE,
         wbEn: `CONF_HPDCACHE_WB_ENABLE,
         userEn: `CONF_HPDCACHE_USER_ENABLE,
+        capAmoEn: `CONF_HPDCACHE_CAP_AMO_ENABLE,
         lowLatency: `CONF_HPDCACHE_LOW_LATENCY
     },
 
