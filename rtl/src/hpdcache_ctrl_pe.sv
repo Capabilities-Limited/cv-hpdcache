@@ -602,7 +602,7 @@ import hpdcache_pkg::*;
                                 //  the line, as when we bring in the read from memory we don't know
                                 //  whether to clear the tag or not
                                 st2_dir_updt_o = 1'b1;
-                                st2_dir_updt_valid_o = !st1_req_is_amo_lr_i;
+                                st2_dir_updt_valid_o = HPDcacheCfg.u.capAmoEn ? !st1_req_is_amo_lr_i : 1'b1;
                                 st2_dir_updt_wback_o = st1_dir_hit_wback_i;
                                 st2_dir_updt_dirty_o = 1'b0;
 

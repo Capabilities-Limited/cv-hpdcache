@@ -140,6 +140,7 @@ import hpdcache_pkg::*;
     localparam hpdcache_uint MEM_REQ_WORD_INDEX_WIDTH = $clog2(MEM_REQ_RATIO);
     localparam hpdcache_uint REQ_MEM_RATIO = HPDcacheCfg.reqDataWidth/HPDcacheCfg.u.memDataWidth;
     localparam hpdcache_uint REQ_MEM_WORD_INDEX_WIDTH = $clog2(REQ_MEM_RATIO);
+    localparam hpdcache_uint AMO_WIDTH = HPDcacheCfg.u.capAmoEn ? 128 : 64;
 
     typedef enum {
         UC_IDLE,
@@ -156,11 +157,11 @@ import hpdcache_pkg::*;
     localparam logic AMO_SC_SUCCESS = 1'b0;
     localparam logic AMO_SC_FAILURE = 1'b1;
 
-    function automatic logic [127:0] prepare_amo_data_operand(
-            input logic [127:0]       data_i,
-            input hpdcache_req_size_t size_i,
-            input hpdcache_req_addr_t addr_i,
-            input logic               sign_extend_i
+    function automatic logic [AMO_WIDTH-1:0] prepare_amo_data_operand(
+            input logic [AMO_WIDTH-1:0] data_i,
+            input hpdcache_req_size_t   size_i,
+            input hpdcache_req_addr_t   addr_i,
+            input logic                 sign_extend_i
     );
         // 128-bits AMOs are already aligned, thus do nothing
         if (size_i == hpdcache_req_size_t'(4)) begin
@@ -212,9 +213,9 @@ import hpdcache_pkg::*;
         end
     endfunction;
 
-    function automatic logic [127:0] prepare_amo_data_result(
-            input logic [127:0]       data_i,
-            input hpdcache_req_size_t size_i
+    function automatic logic [AMO_WIDTH-1:0] prepare_amo_data_result(
+            input logic [AMO_WIDTH-1:0] data_i,
+            input hpdcache_req_size_t   size_i
     );
         // 128-bits AMOs are already aligned, thus do nothing
         if (size_i == hpdcache_req_size_t'(4)) begin
@@ -269,6 +270,7 @@ import hpdcache_pkg::*;
     logic                 req_hit;
     hpdcache_req_data_t   req_old_data_q;
     logic                 multiflit;
+    logic                 req_is_cap;
 
     logic                 uc_sc_retcode_q, uc_sc_retcode_d;
 
@@ -282,13 +284,18 @@ import hpdcache_pkg::*;
 
     hpdcache_req_data_t   mem_req_write_data;
     hpdcache_req_user_t   mem_req_write_user;
-    logic [127:0]         amo_req_ld_data;
-    logic [127:0]         amo_ld_data;
-    logic [127:0]         amo_req_st_data;
-    logic [127:0]         amo_st_data;
-    logic [127:0]         amo_result;
-    logic                 amo_user;
-    logic [127:0]         amo_write_data;
+    logic [AMO_WIDTH-1:0] amo_req_ld_data;
+    logic                 amo_req_ld_user;
+    logic [AMO_WIDTH-1:0] amo_ld_data;
+    logic                 amo_ld_user;
+    logic [AMO_WIDTH-1:0] amo_req_st_data;
+    logic                 amo_req_st_user;
+    logic [AMO_WIDTH-1:0] amo_st_data;
+    logic                 amo_st_user;
+    logic [AMO_WIDTH-1:0] amo_result_data;
+    logic                 amo_result_user;
+    logic [AMO_WIDTH-1:0] amo_write_data;
+    logic                 amo_write_user;
     hpdcache_req_data_t   data_amo_write_data;
     logic                 data_amo_write_merge;
 //  }}}
@@ -341,7 +348,8 @@ import hpdcache_pkg::*;
 
     assign req_hit = |req_hit_way_q;
 
-    assign multiflit = req_size_q == hpdcache_req_size_t'(4);
+    assign multiflit = HPDcacheCfg.u.capAmoEn && req_size_q == hpdcache_req_size_t'(4);
+    assign req_is_cap = HPDcacheCfg.u.capAmoEn && HPDcacheCfg.u.userEn && req_size_q == hpdcache_req_size_t'(4);
     assign mem_resp_read_finishing = mem_resp_read_valid_i && mem_resp_read_i.mem_resp_r_last;
 
 //  Uncacheable request FSM
@@ -641,74 +649,83 @@ import hpdcache_pkg::*;
 
 //  AMO unit
 //  {{{
-    if (HPDcacheCfg.reqDataWidth > 128) begin : gen_amo_data_width_gt_128
-    //    localparam hpdcache_uint AMO_WORD_INDEX_WIDTH = $clog2(HPDcacheCfg.reqDataWidth/128);
-    //    hpdcache_mux #(
-    //        .NINPUT         (HPDcacheCfg.reqDataWidth/128),
-    //        .DATA_WIDTH     (128),
-    //        .ONE_HOT_SEL    (1'b0)
-    //    ) amo_ld_data_mux_i (
-    //        .data_i         (rsp_rdata_q),
-    //        .sel_i          (req_addr_q[4 +: AMO_WORD_INDEX_WIDTH]),
-    //        .data_o         (amo_req_ld_data[127:0])
-    //    );
 
-    //    hpdcache_mux #(
-    //        .NINPUT         (HPDcacheCfg.reqDataWidth/128),
-    //        .DATA_WIDTH     (1),
-    //        .ONE_HOT_SEL    (1'b0)
-    //    ) amo_ld_data_mux_i (
-    //        .data_i         (rsp_ruser_q),
-    //        .sel_i          (req_addr_q[4 +: AMO_WORD_INDEX_WIDTH]),
-    //        .data_o         (amo_req_ld_data[128])
-    //    );
+    if (HPDcacheCfg.reqDataWidth > AMO_WIDTH) begin : gen_amo_data_width_gt_amo_width
+        localparam hpdcache_uint AMO_WORD_INDEX_WIDTH = $clog2(HPDcacheCfg.reqDataWidth/AMO_WIDTH);
+        hpdcache_mux #(
+            .NINPUT         (HPDcacheCfg.reqDataWidth/AMO_WIDTH),
+            .DATA_WIDTH     (AMO_WIDTH),
+            .ONE_HOT_SEL    (1'b0)
+        ) amo_ld_data_mux_i (
+            .data_i         (rsp_rdata_q),
+            .sel_i          (req_addr_q[$clog2(AMO_WIDTH/8) +: AMO_WORD_INDEX_WIDTH]),
+            .data_o         (amo_req_ld_data)
+        );
 
-    //    hpdcache_mux #(
-    //        .NINPUT         (HPDcacheCfg.reqDataWidth/128),
-    //        .DATA_WIDTH     (128),
-    //        .ONE_HOT_SEL    (1'b0)
-    //    ) amo_st_data_mux_i (
-    //        .data_i         (req_data_q),
-    //        .sel_i          (req_addr_q[4 +: AMO_WORD_INDEX_WIDTH]),
-    //        .data_o         (amo_req_st_data[127:0])
-    //    );
+        if (HPDcacheCfg.u.userEn) begin : gen_amo_req_ld_user_userEn
+            hpdcache_mux #(
+                .NINPUT         (HPDcacheCfg.reqDataWidth/AMO_WIDTH),
+                .DATA_WIDTH     (1),
+                .ONE_HOT_SEL    (1'b0)
+            ) amo_ld_data_mux_i (
+                .data_i         (rsp_ruser_q),
+                .sel_i          (req_addr_q[$clog2(AMO_WIDTH/8) +: AMO_WORD_INDEX_WIDTH]),
+                .data_o         (amo_req_ld_user)
+            );
+        end else begin : gen_amo_req_ld_user_default
+            assign amo_req_ld_user = '0;
+        end
 
-    //    hpdcache_mux #(
-    //        .NINPUT         (HPDcacheCfg.reqDataWidth/128),
-    //        .DATA_WIDTH     (1),
-    //        .ONE_HOT_SEL    (1'b0)
-    //    ) amo_ld_data_mux_i (
-    //        .data_i         (req_user_q),
-    //        .sel_i          (req_addr_q[4 +: AMO_WORD_INDEX_WIDTH]),
-    //        .data_o         (amo_req_st_data[128])
-    //    );
-    end else if (HPDcacheCfg.reqDataWidth == 128) begin : gen_amo_data_width_eq_128
-        //assign amo_req_ld_data = {rsp_ruser_q, rsp_rdata_q};
+        hpdcache_mux #(
+            .NINPUT         (HPDcacheCfg.reqDataWidth/AMO_WIDTH),
+            .DATA_WIDTH     (AMO_WIDTH),
+            .ONE_HOT_SEL    (1'b0)
+        ) amo_st_data_mux_i (
+            .data_i         (req_data_q),
+            .sel_i          (req_addr_q[$clog2(AMO_WIDTH/8) +: AMO_WORD_INDEX_WIDTH]),
+            .data_o         (amo_req_st_data)
+        );
+
+        if (HPDcacheCfg.u.userEn) begin : gen_amo_req_st_user_userEn
+            hpdcache_mux #(
+                .NINPUT         (HPDcacheCfg.reqDataWidth/AMO_WIDTH),
+                .DATA_WIDTH     (1),
+                .ONE_HOT_SEL    (1'b0)
+            ) amo_ld_data_mux_i (
+                .data_i         (req_user_q),
+                .sel_i          (req_addr_q[$clog2(AMO_WIDTH/8) +: AMO_WORD_INDEX_WIDTH]),
+                .data_o         (amo_req_st_user)
+            );
+        end else begin : gen_amo_req_st_user_default
+            assign amo_req_st_user = '0;
+        end
+    end else if (HPDcacheCfg.reqDataWidth == AMO_WIDTH) begin : gen_amo_data_width_eq_amo_width
         assign amo_req_ld_data = rsp_rdata_q;
-        //assign amo_req_st_data = {req_user_q, req_data_q};
+        assign amo_req_ld_user = HPDcacheCfg.u.userEn ? rsp_ruser_q : '0;
         assign amo_req_st_data = req_data_q;
-    end else begin : gen_amo_data_width_eq_64
-        //assign amo_req_ld_data = {1'b0, rsp_rdata_q[0], rsp_rdata_q[0]};
-        //assign amo_req_st_data = {1'b0, req_data_q, req_data_q};
+        assign amo_req_st_user = HPDcacheCfg.u.userEn ? req_user_q : '0;
     end
 
     assign amo_ld_data = prepare_amo_data_operand(amo_req_ld_data, req_size_q,
             req_addr_q, amo_need_sign_extend(req_op_q));
+    assign amo_ld_user = req_is_cap ? amo_req_ld_user : '0;
     assign amo_st_data = prepare_amo_data_operand(amo_req_st_data, req_size_q,
             req_addr_q, amo_need_sign_extend(req_op_q));
+    assign amo_st_user = req_is_cap ? amo_req_st_user : '0;
 
     hpdcache_amo #(
-        .DATA_WIDTH  (128),
+        .DATA_WIDTH  (AMO_WIDTH),
         .ARITH_WIDTH (64),
-        .user_t      (hpdcache_req_user_t)
+        .user_t      (hpdcache_req_user_t),
+        .userEn      (HPDcacheCfg.u.userEn)
     ) amo_unit_i (
         .ld_data_i   (amo_ld_data),
-        .ld_user_i   (rsp_ruser_q),
+        .ld_user_i   (amo_ld_user),
         .st_data_i   (amo_st_data),
-        .st_user_i   (req_user_q),
+        .st_user_i   (amo_st_user),
         .op_i        (req_op_q),
-        .result_o    (amo_result),
-        .user_o      (amo_user)
+        .result_o    (amo_result_data),
+        .user_o      (amo_result_user)
     );
 
     assign data_amo_write_o = (uc_fsm_q == UC_AMO_WRITE_DATA);
@@ -719,16 +736,15 @@ import hpdcache_pkg::*;
                                               HPDcacheCfg.clWordIdxWidth];
     assign data_amo_write_way_o = req_hit_way_q;
 
-    assign amo_write_data = prepare_amo_data_result(amo_result, req_size_q);
-    //if (HPDcacheCfg.reqDataWidth >= 64) begin : gen_amo_ram_write_data_ge_64
-    //    assign data_amo_write_data_o = {HPDcacheCfg.reqDataWidth/64{amo_write_data}};
-    //end else begin : gen_amo_ram_write_data_lt_64
+    assign amo_write_data = prepare_amo_data_result(amo_result_data, req_size_q);
+    assign amo_write_user = req_is_cap ? amo_result_user : '0;
+    if (HPDcacheCfg.reqDataWidth >= AMO_WIDTH) begin : gen_amo_ram_write_data_ge_amo_width
+        assign data_amo_write_data_o = {HPDcacheCfg.reqDataWidth/AMO_WIDTH{amo_write_data}};
+        assign data_amo_write_user_o = {HPDcacheCfg.reqDataWidth/AMO_WIDTH{amo_write_user}};
+    end else begin : gen_amo_ram_write_data_lt_amo_width
         assign data_amo_write_data_o = amo_write_data;
-    //end
-    // XXX TODO implement user bits on amo,
-    // probably as a function of req_data_i and mem_resp_read_i.mem_resp_r_data
-    assign data_amo_write_user_o = amo_user;
-    // XXX TODO
+        assign data_amo_write_user_o = amo_write_user;
+    end
 
     if (HPDcacheCfg.u.eccEn) begin : gen_data_req_write_ecc
         assign data_amo_write_merge = (hpdcache_uint'(req_size_q) < HPDcacheCfg.wordByteIdxWidth);
@@ -895,35 +911,39 @@ import hpdcache_pkg::*;
     end
 
     //  memory data width is bigger than the width of the core's interface
-    if (MEM_REQ_RATIO > 1) begin : gen_upsize_mem_req_data
-    //    //  replicate data
-    //    assign mem_req_write_data_o.mem_req_w_data = {MEM_REQ_RATIO{mem_req_write_data}};
-    //    assign mem_req_write_data_o.mem_req_w_user = mem_req_write_user;
+    if (HPDcacheCfg.u.capAmoEn) begin : gen_mem_req_write_data_capAmoEn
+        // Currently only support REQ=128, MEM=64
+        if (REQ_MEM_RATIO == 2) begin : gen_downsize_mem_req_data
+            hpdcache_req_addr_t flit_addr;
+            assign flit_addr = req_addr_q + (uc_fsm_q inside {UC_MEM_WDATA2_REQ, UC_MEM_W_AND_WDATA2_REQ} ? 'h8 : 'h0);
+            assign mem_req_write_data_o.mem_req_w_data = mem_req_write_data >> (flit_addr[$clog2(HPDcacheCfg.u.memDataWidth/8) +: REQ_MEM_WORD_INDEX_WIDTH] * HPDcacheCfg.u.memDataWidth);
+            assign mem_req_write_data_o.mem_req_w_be   = req_be_q >> (flit_addr[$clog2(HPDcacheCfg.u.memDataWidth/8) +: REQ_MEM_WORD_INDEX_WIDTH] * (HPDcacheCfg.u.memDataWidth/8));
+            assign mem_req_write_data_o.mem_req_w_user = mem_req_write_user;
+        end
+    end else begin : gen_mem_req_write_data_default
+        // Currently only support MEM >= REQ
+        if (MEM_REQ_RATIO > 1) begin : gen_upsize_mem_req_data
+            //  replicate data
+            assign mem_req_write_data_o.mem_req_w_data = {MEM_REQ_RATIO{mem_req_write_data}};
+            assign mem_req_write_data_o.mem_req_w_user = mem_req_write_user;
 
-    //    //  demultiplex the byte-enable
-    //    hpdcache_demux #(
-    //        .NOUTPUT     (MEM_REQ_RATIO),
-    //        .DATA_WIDTH  (HPDcacheCfg.reqDataWidth/8)
-    //    ) mem_write_be_demux_i (
-    //        .data_i      (req_be_q),
-    //        .sel_i       (req_addr_q[$clog2(HPDcacheCfg.reqDataWidth/8) +:
-    //                                 MEM_REQ_WORD_INDEX_WIDTH]),
-    //        .data_o      (mem_req_write_data_o.mem_req_w_be)
-    //    );
-    end
-    //  the core's interface is bigger than the memory data width
-    else if (REQ_MEM_RATIO > 1) begin : gen_downsize_mem_req_data
-        hpdcache_req_addr_t flit_addr;
-        assign flit_addr = req_addr_q + (uc_fsm_q inside {UC_MEM_WDATA2_REQ, UC_MEM_W_AND_WDATA2_REQ} ? 'h8 : 'h0);
-        assign mem_req_write_data_o.mem_req_w_data = mem_req_write_data >> (flit_addr[$clog2(HPDcacheCfg.u.memDataWidth/8) +: REQ_MEM_WORD_INDEX_WIDTH] * HPDcacheCfg.u.memDataWidth);
-        assign mem_req_write_data_o.mem_req_w_be   = req_be_q >> (flit_addr[$clog2(HPDcacheCfg.u.memDataWidth/8) +: REQ_MEM_WORD_INDEX_WIDTH] * (HPDcacheCfg.u.memDataWidth/8));
-        assign mem_req_write_data_o.mem_req_w_user = mem_req_write_user;
-    end
-    //  memory data width is equal to the width of the core's interface
-    else begin : gen_eqsize_mem_req_data
-        //assign mem_req_write_data_o.mem_req_w_data = mem_req_write_data;
-        //assign mem_req_write_data_o.mem_req_w_be   = req_be_q;
-        //assign mem_req_write_data_o.mem_req_w_user = mem_req_write_user;
+            //  demultiplex the byte-enable
+            hpdcache_demux #(
+                .NOUTPUT     (MEM_REQ_RATIO),
+                .DATA_WIDTH  (HPDcacheCfg.reqDataWidth/8)
+            ) mem_write_be_demux_i (
+                .data_i      (req_be_q),
+                .sel_i       (req_addr_q[$clog2(HPDcacheCfg.reqDataWidth/8) +:
+                                         MEM_REQ_WORD_INDEX_WIDTH]),
+                .data_o      (mem_req_write_data_o.mem_req_w_be)
+            );
+        end
+        //  memory data width is equal to the width of the core's interface
+        else if (MEM_REQ_RATIO == 1) begin : gen_eqsize_mem_req_data
+            assign mem_req_write_data_o.mem_req_w_data = mem_req_write_data;
+            assign mem_req_write_data_o.mem_req_w_be   = req_be_q;
+            assign mem_req_write_data_o.mem_req_w_user = mem_req_write_user;
+        end
     end
 
     assign mem_req_write_data_o.mem_req_w_last = !multiflit || uc_fsm_q inside {UC_MEM_WDATA2_REQ, UC_MEM_W_AND_WDATA2_REQ};
@@ -931,15 +951,15 @@ import hpdcache_pkg::*;
 
 //  Response handling
 //  {{{
-    logic [63:0]        sc_retcode;
-    logic [63:0]        sc_rdata_dword;
+    logic [AMO_WIDTH-1:0] sc_retcode;
+    logic [AMO_WIDTH-1:0] sc_rdata_dword;
     hpdcache_req_data_t sc_rdata;
 
-    assign sc_retcode = {{63{1'b0}}, uc_sc_retcode_q};
+    assign sc_retcode = {{AMO_WIDTH-1{1'b0}}, uc_sc_retcode_q};
     assign sc_rdata_dword = prepare_amo_data_result(sc_retcode, req_size_q);
-    if (HPDcacheCfg.reqDataWidth >= 64) begin : gen_sc_rdata_ge_64
-        assign sc_rdata = {HPDcacheCfg.reqDataWidth/64{sc_rdata_dword}};
-    end else begin : gen_sc_rdata_lt_64
+    if (HPDcacheCfg.reqDataWidth >= AMO_WIDTH) begin : gen_sc_rdata_ge_amo_width
+        assign sc_rdata = {HPDcacheCfg.reqDataWidth/AMO_WIDTH{sc_rdata_dword}};
+    end else begin : gen_sc_rdata_lt_amo_width
         assign sc_rdata = sc_rdata_dword;
     end
 
@@ -950,39 +970,46 @@ import hpdcache_pkg::*;
     assign core_rsp_o.error   = rsp_error_q;
     assign core_rsp_o.aborted = 1'b0;
 
-    //  Resize the memory response data to the core response width
-    //  memory data width is bigger than the width of the core's interface
-    if (MEM_REQ_RATIO > 1) begin : gen_downsize_core_rsp_data
-    //    hpdcache_mux #(
-    //        .NINPUT      (MEM_REQ_RATIO),
-    //        .DATA_WIDTH  (HPDcacheCfg.reqDataWidth)
-    //    ) data_read_rsp_mux_i(
-    //        .data_i      (mem_resp_read_i.mem_resp_r_data),
-    //        .sel_i       (req_addr_q[$clog2(HPDcacheCfg.reqDataWidth/8) +:
-    //                                 MEM_REQ_WORD_INDEX_WIDTH]),
-    //        .data_o      (rsp_rdata_d)
-    //    );
+    if (HPDcacheCfg.u.capAmoEn) begin : gen_rsp_rdata_capAmoEn
+        // Currently only support REQ=128, MEM=64
+        if (REQ_MEM_RATIO == 2) begin : gen_upsize_core_rsp_data
+            assign rsp_rdata_d = (multiflit && mem_resp_read_i.mem_resp_r_last) ? {mem_resp_read_i.mem_resp_r_data, rsp_rdata_q[0][63:0] /* XXX fixme */} : {2{mem_resp_read_i.mem_resp_r_data}};
+            assign rsp_ruser_d = (multiflit && mem_resp_read_i.mem_resp_r_last) ? {rsp_ruser_q && mem_resp_read_i.mem_resp_r_user} : mem_resp_read_i.mem_resp_r_user;
+        end
+    end else begin : gen_rsp_rdata_default
+        //  Currently only support MEM >= REQ
+        //  Resize the memory response data to the core response width
+        //  memory data width is bigger than the width of the core's interface
+        if (MEM_REQ_RATIO > 1) begin : gen_downsize_core_rsp_data
+            hpdcache_mux #(
+                .NINPUT      (MEM_REQ_RATIO),
+                .DATA_WIDTH  (HPDcacheCfg.reqDataWidth)
+            ) data_read_rsp_mux_i(
+                .data_i      (mem_resp_read_i.mem_resp_r_data),
+                .sel_i       (req_addr_q[$clog2(HPDcacheCfg.reqDataWidth/8) +:
+                                         MEM_REQ_WORD_INDEX_WIDTH]),
+                .data_o      (rsp_rdata_d)
+            );
 
-    //    hpdcache_mux #(
-    //        .NINPUT      (MEM_REQ_RATIO),
-    //        .DATA_WIDTH  (HPDcacheCfg.reqUserWidth)
-    //    ) user_read_rsp_mux_i(
-    //        .data_i      (mem_resp_read_i.mem_resp_r_user),
-    //        .sel_i       (req_addr_q[$clog2(HPDcacheCfg.reqDataWidth/8) +:
-    //                                 MEM_REQ_WORD_INDEX_WIDTH]),
-    //        .data_o      (rsp_ruser_d)
-    //    );
-    end
-
-    else if (REQ_MEM_RATIO > 1) begin : gen_upsize_core_rsp_data
-        assign rsp_rdata_d[0] = (multiflit && mem_resp_read_i.mem_resp_r_last) ? {mem_resp_read_i.mem_resp_r_data, rsp_rdata_q[0][63:0]} : {2{mem_resp_read_i.mem_resp_r_data}};
-        assign rsp_ruser_d = (multiflit && mem_resp_read_i.mem_resp_r_last) ? {rsp_ruser_q && mem_resp_read_i.mem_resp_r_user} : mem_resp_read_i.mem_resp_r_user;
-    end
-
-    //  memory data width is equal to the width of the core's interface
-    else begin : gen_eqsize_core_rsp_data
-    //    assign rsp_rdata_d = mem_resp_read_i.mem_resp_r_data;
-    //    assign rsp_ruser_d = mem_resp_read_i.mem_resp_r_user;
+            if (HPDcacheCfg.u.userEn) begin : gen_rsp_ruser_userEn
+                hpdcache_mux #(
+                    .NINPUT      (MEM_REQ_RATIO),
+                    .DATA_WIDTH  (HPDcacheCfg.reqWords * HPDcacheCfg.reqWordUserWidth)
+                ) user_read_rsp_mux_i(
+                    .data_i      (mem_resp_read_i.mem_resp_r_user),
+                    .sel_i       (req_addr_q[$clog2(HPDcacheCfg.reqDataWidth/8) +:
+                                             MEM_REQ_WORD_INDEX_WIDTH]),
+                    .data_o      (rsp_ruser_d)
+                );
+            end else begin : gen_rsp_ruser_default
+                assign rsp_ruser_d = '0;
+            end
+        end
+        //  memory data width is equal to the width of the core's interface
+        else if (MEM_REQ_RATIO == 1) begin : gen_eqsize_core_rsp_data
+            assign rsp_rdata_d = mem_resp_read_i.mem_resp_r_data;
+            assign rsp_ruser_d = HPDcacheCfg.u.userEn ? mem_resp_read_i.mem_resp_r_user : '0;
+        end
     end
 
     //  This FSM is always ready to accept the response
