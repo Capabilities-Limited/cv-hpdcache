@@ -153,7 +153,6 @@ import hpdcache_pkg::*;
     localparam hpdcache_uint MEM_REQ_WORD_INDEX_WIDTH = $clog2(MEM_REQ_RATIO);
     localparam hpdcache_uint REQ_MEM_RATIO = HPDcacheCfg.reqDataWidth/HPDcacheCfg.u.memDataWidth;
     localparam hpdcache_uint REQ_MEM_WORD_INDEX_WIDTH = $clog2(REQ_MEM_RATIO);
-    localparam hpdcache_uint AMO_WIDTH = HPDcacheCfg.u.capAmoEn ? 128 : 64;
 
     typedef enum {
         UC_IDLE,
@@ -170,8 +169,8 @@ import hpdcache_pkg::*;
     localparam logic AMO_SC_SUCCESS = 1'b0;
     localparam logic AMO_SC_FAILURE = 1'b1;
 
-    function automatic logic [AMO_WIDTH-1:0] prepare_amo_data_operand(
-            input logic [AMO_WIDTH-1:0] data_i,
+    function automatic logic [HPDcacheCfg.amoWidth-1:0] prepare_amo_data_operand(
+            input logic [HPDcacheCfg.amoWidth-1:0] data_i,
             input hpdcache_req_size_t   size_i,
             input hpdcache_req_addr_t   addr_i,
             input logic                 sign_extend_i
@@ -226,8 +225,8 @@ import hpdcache_pkg::*;
         end
     endfunction;
 
-    function automatic logic [AMO_WIDTH-1:0] prepare_amo_data_result(
-            input logic [AMO_WIDTH-1:0] data_i,
+    function automatic logic [HPDcacheCfg.amoWidth-1:0] prepare_amo_data_result(
+            input logic [HPDcacheCfg.amoWidth-1:0] data_i,
             input hpdcache_req_size_t   size_i
     );
         // 128-bits AMOs are already aligned, thus do nothing
@@ -296,18 +295,19 @@ import hpdcache_pkg::*;
 
     hpdcache_req_data_t   mem_req_write_data;
     hpdcache_req_user_t   mem_req_write_user;
-    logic [AMO_WIDTH-1:0] amo_req_ld_data;
-    logic                 amo_req_ld_user;
-    logic [AMO_WIDTH-1:0] amo_ld_data;
-    logic                 amo_ld_user;
-    logic [AMO_WIDTH-1:0] amo_req_st_data;
-    logic                 amo_req_st_user;
-    logic [AMO_WIDTH-1:0] amo_st_data;
-    logic                 amo_st_user;
-    logic [AMO_WIDTH-1:0] amo_result_data;
-    logic                 amo_result_user;
-    logic [AMO_WIDTH-1:0] amo_write_data;
-    logic                 amo_write_user;
+
+    logic [HPDcacheCfg.amoWidth-1:0] amo_req_ld_data;
+    logic                            amo_req_ld_user;
+    logic [HPDcacheCfg.amoWidth-1:0] amo_ld_data;
+    logic                            amo_ld_user;
+    logic [HPDcacheCfg.amoWidth-1:0] amo_req_st_data;
+    logic                            amo_req_st_user;
+    logic [HPDcacheCfg.amoWidth-1:0] amo_st_data;
+    logic                            amo_st_user;
+    logic [HPDcacheCfg.amoWidth-1:0] amo_result_data;
+    logic                            amo_result_user;
+    logic [HPDcacheCfg.amoWidth-1:0] amo_write_data;
+    logic                            amo_write_user;
 //  }}}
 
 //  LR/SC reservation buffer logic
@@ -664,26 +664,26 @@ import hpdcache_pkg::*;
 //  AMO unit
 //  {{{
 
-    if (HPDcacheCfg.reqDataWidth > AMO_WIDTH) begin : gen_amo_data_width_gt_amo_width
-        localparam hpdcache_uint AMO_WORD_INDEX_WIDTH = $clog2(HPDcacheCfg.reqDataWidth/AMO_WIDTH);
+    if (HPDcacheCfg.reqDataWidth > HPDcacheCfg.amoWidth) begin : gen_amo_data_width_gt_amo_width
+        localparam hpdcache_uint AMO_WORD_INDEX_WIDTH = $clog2(HPDcacheCfg.reqDataWidth/HPDcacheCfg.amoWidth);
         hpdcache_mux #(
-            .NINPUT         (HPDcacheCfg.reqDataWidth/AMO_WIDTH),
-            .DATA_WIDTH     (AMO_WIDTH),
+            .NINPUT         (HPDcacheCfg.reqDataWidth/HPDcacheCfg.amoWidth),
+            .DATA_WIDTH     (HPDcacheCfg.amoWidth),
             .ONE_HOT_SEL    (1'b0)
         ) amo_ld_data_mux_i (
             .data_i         (rsp_rdata_q),
-            .sel_i          (req_addr_q[$clog2(AMO_WIDTH/8) +: AMO_WORD_INDEX_WIDTH]),
+            .sel_i          (req_addr_q[$clog2(HPDcacheCfg.amoWidth/8) +: AMO_WORD_INDEX_WIDTH]),
             .data_o         (amo_req_ld_data)
         );
 
         if (HPDcacheCfg.u.userEn) begin : gen_amo_req_ld_user_userEn
             hpdcache_mux #(
-                .NINPUT         (HPDcacheCfg.reqDataWidth/AMO_WIDTH),
+                .NINPUT         (HPDcacheCfg.reqDataWidth/HPDcacheCfg.amoWidth),
                 .DATA_WIDTH     (1),
                 .ONE_HOT_SEL    (1'b0)
             ) amo_ld_data_mux_i (
                 .data_i         (rsp_ruser_q),
-                .sel_i          (req_addr_q[$clog2(AMO_WIDTH/8) +: AMO_WORD_INDEX_WIDTH]),
+                .sel_i          (req_addr_q[$clog2(HPDcacheCfg.amoWidth/8) +: AMO_WORD_INDEX_WIDTH]),
                 .data_o         (amo_req_ld_user)
             );
         end else begin : gen_amo_req_ld_user_default
@@ -691,29 +691,29 @@ import hpdcache_pkg::*;
         end
 
         hpdcache_mux #(
-            .NINPUT         (HPDcacheCfg.reqDataWidth/AMO_WIDTH),
-            .DATA_WIDTH     (AMO_WIDTH),
+            .NINPUT         (HPDcacheCfg.reqDataWidth/HPDcacheCfg.amoWidth),
+            .DATA_WIDTH     (HPDcacheCfg.amoWidth),
             .ONE_HOT_SEL    (1'b0)
         ) amo_st_data_mux_i (
             .data_i         (req_data_q),
-            .sel_i          (req_addr_q[$clog2(AMO_WIDTH/8) +: AMO_WORD_INDEX_WIDTH]),
+            .sel_i          (req_addr_q[$clog2(HPDcacheCfg.amoWidth/8) +: AMO_WORD_INDEX_WIDTH]),
             .data_o         (amo_req_st_data)
         );
 
         if (HPDcacheCfg.u.userEn) begin : gen_amo_req_st_user_userEn
             hpdcache_mux #(
-                .NINPUT         (HPDcacheCfg.reqDataWidth/AMO_WIDTH),
+                .NINPUT         (HPDcacheCfg.reqDataWidth/HPDcacheCfg.amoWidth),
                 .DATA_WIDTH     (1),
                 .ONE_HOT_SEL    (1'b0)
             ) amo_ld_data_mux_i (
                 .data_i         (req_user_q),
-                .sel_i          (req_addr_q[$clog2(AMO_WIDTH/8) +: AMO_WORD_INDEX_WIDTH]),
+                .sel_i          (req_addr_q[$clog2(HPDcacheCfg.amoWidth/8) +: AMO_WORD_INDEX_WIDTH]),
                 .data_o         (amo_req_st_user)
             );
         end else begin : gen_amo_req_st_user_default
             assign amo_req_st_user = '0;
         end
-    end else if (HPDcacheCfg.reqDataWidth == AMO_WIDTH) begin : gen_amo_data_width_eq_amo_width
+    end else if (HPDcacheCfg.reqDataWidth == HPDcacheCfg.amoWidth) begin : gen_amo_data_width_eq_amo_width
         assign amo_req_ld_data = rsp_rdata_q;
         assign amo_req_ld_user = HPDcacheCfg.u.userEn ? rsp_ruser_q : '0;
         assign amo_req_st_data = req_data_q;
@@ -728,7 +728,7 @@ import hpdcache_pkg::*;
     assign amo_st_user = req_is_cap ? amo_req_st_user : '0;
 
     hpdcache_amo #(
-        .DATA_WIDTH  (AMO_WIDTH),
+        .DATA_WIDTH  (HPDcacheCfg.amoWidth),
         .ARITH_WIDTH (64),
         .user_t      (hpdcache_req_user_t),
         .userEn      (HPDcacheCfg.u.userEn)
@@ -753,9 +753,9 @@ import hpdcache_pkg::*;
 
     assign amo_write_data = prepare_amo_data_result(amo_result_data, req_size_q);
     assign amo_write_user = req_is_cap ? amo_result_user : '0;
-    if (HPDcacheCfg.reqDataWidth >= AMO_WIDTH) begin : gen_amo_ram_write_data_ge_amo_width
-        assign data_amo_write_data_o = {HPDcacheCfg.reqDataWidth/AMO_WIDTH{amo_write_data}};
-        assign data_amo_write_user_o = {HPDcacheCfg.reqDataWidth/AMO_WIDTH{amo_write_user}};
+    if (HPDcacheCfg.reqDataWidth >= HPDcacheCfg.amoWidth) begin : gen_amo_ram_write_data_ge_amo_width
+        assign data_amo_write_data_o = {HPDcacheCfg.reqDataWidth/HPDcacheCfg.amoWidth{amo_write_data}};
+        assign data_amo_write_user_o = {HPDcacheCfg.reqDataWidth/HPDcacheCfg.amoWidth{amo_write_user}};
     end else begin : gen_amo_ram_write_data_lt_amo_width
         assign data_amo_write_data_o = amo_write_data;
         assign data_amo_write_user_o = amo_write_user;
@@ -948,14 +948,14 @@ import hpdcache_pkg::*;
 
 //  Response handling
 //  {{{
-    logic [AMO_WIDTH-1:0] sc_retcode;
-    logic [AMO_WIDTH-1:0] sc_rdata_dword;
+    logic [HPDcacheCfg.amoWidth-1:0] sc_retcode;
+    logic [HPDcacheCfg.amoWidth-1:0] sc_rdata_dword;
     hpdcache_req_data_t sc_rdata;
 
-    assign sc_retcode = {{AMO_WIDTH-1{1'b0}}, uc_sc_retcode_q};
+    assign sc_retcode = {{HPDcacheCfg.amoWidth-1{1'b0}}, uc_sc_retcode_q};
     assign sc_rdata_dword = prepare_amo_data_result(sc_retcode, req_size_q);
-    if (HPDcacheCfg.reqDataWidth >= AMO_WIDTH) begin : gen_sc_rdata_ge_amo_width
-        assign sc_rdata = {HPDcacheCfg.reqDataWidth/AMO_WIDTH{sc_rdata_dword}};
+    if (HPDcacheCfg.reqDataWidth >= HPDcacheCfg.amoWidth) begin : gen_sc_rdata_ge_amo_width
+        assign sc_rdata = {HPDcacheCfg.reqDataWidth/HPDcacheCfg.amoWidth{sc_rdata_dword}};
     end else begin : gen_sc_rdata_lt_amo_width
         assign sc_rdata = sc_rdata_dword;
     end
