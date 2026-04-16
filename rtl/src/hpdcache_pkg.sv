@@ -488,6 +488,7 @@ package hpdcache_pkg;
         int unsigned accessWidth;
         int unsigned accessBytes;
         int unsigned wordsPerMemFlit;
+        int unsigned amoWidth;
     } hpdcache_cfg_t;
 
     function automatic hpdcache_cfg_t hpdcacheBuildConfig(input hpdcache_user_cfg_t p);
@@ -521,6 +522,8 @@ package hpdcache_pkg;
         ret.accessBytes = ret.accessWidth/8;
 
         ret.wordsPerMemFlit = hpdcache_ceil_div(p.memDataWidth, p.wordWidth);
+
+        ret.amoWidth = p.capAmoEn ? 128 : 64;
 
         return ret;
     endfunction
