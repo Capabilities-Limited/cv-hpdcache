@@ -759,7 +759,7 @@ import hpdcache_pkg::*;
         end else begin : gen_amo_req_st_user_default
             assign amo_req_st_user = '0;
         end
-    end else if (HPDcacheCfg.reqDataWidth == HPDcacheCfg.amoWidth) begin : gen_amo_data_width_eq_amo_width
+    end else begin : gen_amo_data_width_leq_amo_width
         assign amo_req_ld_data = rsp_rdata_q;
         assign amo_req_ld_user = HPDcacheCfg.u.userEn ? rsp_ruser_q : '0;
         assign amo_req_st_data = req_data_q;
