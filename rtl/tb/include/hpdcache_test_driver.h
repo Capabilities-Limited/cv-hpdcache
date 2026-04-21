@@ -90,7 +90,8 @@ private:
 
     static sc_bv<HPDCACHE_CORE_REQ_WIDTH> core_req_to_bv(const transaction_ptr& t)
     {
-        const int unsigned PMA_POS = 0;
+        const int unsigned USER_POS = 0;
+        const int unsigned PMA_POS = USER_POS + HPDCACHE_REQ_USER_WIDTH;
         const int unsigned TAG_POS = PMA_POS + HPDCACHE_REQ_PMA_WIDTH;
         const int unsigned PHYS_INDEXED_POS = TAG_POS + HPDCACHE_TAG_WIDTH;
         const int unsigned NEED_RSP_POS = PHYS_INDEXED_POS + HPDCACHE_REQ_PHYS_INDEXED_WIDTH;
@@ -103,6 +104,7 @@ private:
         const int unsigned ADDR_POS = WDATA_POS + HPDCACHE_REQ_DATA_WIDTH;
         sc_bv<HPDCACHE_CORE_REQ_WIDTH> ret;
 
+        ret.range(USER_POS + HPDCACHE_REQ_USER_WIDTH - 1, USER_POS) = 0;
         ret.range(PMA_POS + HPDCACHE_REQ_PMA_WIDTH - 1, PMA_POS) = core_get_req_pma(t);
         ret.range(TAG_POS + HPDCACHE_TAG_WIDTH - 1, TAG_POS) = core_get_req_tag(t);
         ret.range(PHYS_INDEXED_POS + HPDCACHE_REQ_PHYS_INDEXED_WIDTH - 1, PHYS_INDEXED_POS) =
@@ -124,12 +126,14 @@ private:
     static void core_resp_to_struct(hpdcache_test_transaction_resp& resp,
                                     const sc_bv<HPDCACHE_CORE_RSP_WIDTH>& bv)
     {
-        const int unsigned ABORTED_POS = 0;
+        const int unsigned USER_POS = 0;
+        const int unsigned ABORTED_POS = USER_POS + HPDCACHE_RSP_USER_WIDTH;
         const int unsigned ERROR_POS = ABORTED_POS + HPDCACHE_RSP_ABORTED_WIDTH;
         const int unsigned TRANS_ID_POS = ERROR_POS + HPDCACHE_RSP_ERROR_WIDTH;
         const int unsigned SRC_ID_POS = TRANS_ID_POS + HPDCACHE_REQ_TRANS_ID_WIDTH;
         const int unsigned RDATA_POS = SRC_ID_POS + HPDCACHE_REQ_SRC_ID_WIDTH;
 
+        // user field not currently passed to testbench
         resp.rsp_aborted =
             (bv.range(ABORTED_POS + HPDCACHE_RSP_ABORTED_WIDTH - 1, ABORTED_POS).to_uint() > 0);
         resp.rsp_error =
