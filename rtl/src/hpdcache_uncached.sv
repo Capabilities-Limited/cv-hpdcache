@@ -1136,7 +1136,7 @@ import hpdcache_pkg::*;
                     $error("uc_handler: amo requests shall be at most 16 bytes wide");
 
     assert property (@(posedge clk_i) disable iff (rst_ni !== 1)
-            ((HPDcacheCfg.reqDataWidth != 128) -> $bits(hpdcache_req_user_t) == 0)) else
+            (HPDcacheCfg.u.userEn -> HPDcacheCfg.reqDataWidth == 128)) else
                     $error("uc_handler: user_bits only handled as tags on 128-bit access width");
 
     assert property (@(posedge clk_i) disable iff (rst_ni !== 1)
