@@ -190,6 +190,7 @@ import hpdcache_pkg::*;
             input hpdcache_req_addr_t   addr_i,
             input logic                 sign_extend_i
     );
+        localparam AMO_WIDTH_MSB_SELECT = $clog2(HPDcacheCfg.amoWidth/8)-1;
         // 128-bits AMOs are already aligned, thus do nothing
         if (size_i == hpdcache_req_size_t'(4)) begin
             return data_i;
@@ -197,45 +198,49 @@ import hpdcache_pkg::*;
 
         // 64-bits AMOs: never sign extend into the metadata
         else if (size_i == hpdcache_req_size_t'(3)) begin
-            automatic logic[1:0][63:0] dwords;
+            localparam hpdcache_uint dword_count = HPDcacheCfg.amoWidth / 64;
+            automatic logic[dword_count-1:0][63:0] dwords;
             automatic logic[63:0] shifted_dword;
-            for (int i = 0; i < 2; i = i+1) begin
+            for (int i = 0; i < dword_count; i = i+1) begin
                 dwords[i] = data_i[i*64+:64];
             end
-            shifted_dword = dwords[addr_i[3]];
+            shifted_dword = dword_count > 1 ? dwords[addr_i[hpdcache_max(AMO_WIDTH_MSB_SELECT,3):3]] : dwords[0];
             return {{64{1'b0}}, shifted_dword};
         end
 
         // 32-bits AMOs
         else if (size_i == hpdcache_req_size_t'(2)) begin
-            automatic logic[3:0][31:0] words;
+            localparam hpdcache_uint word_count = HPDcacheCfg.amoWidth / 32;
+            automatic logic[word_count-1:0][31:0] words;
             automatic logic[31:0] shifted_word;
-            for (int i = 0; i < 4; i = i+1) begin
+            for (int i = 0; i < word_count; i = i+1) begin
                 words[i] = data_i[i*32+:32];
             end
-            shifted_word = words[addr_i[3:2]];
+            shifted_word = words[addr_i[AMO_WIDTH_MSB_SELECT:2]];
             return {{64{1'b0}}, {32{sign_extend_i & shifted_word[31]}}, shifted_word};
         end
 
         // 16-bits AMOs
         else if (size_i == hpdcache_req_size_t'(1)) begin
-            automatic logic[7:0][15:0] hwords;
+            localparam hpdcache_uint hword_count = HPDcacheCfg.amoWidth / 16;
+            automatic logic[hword_count-1:0][15:0] hwords;
             automatic logic[15:0] shifted_hword;
-            for (int i = 0; i < 8; i = i+1) begin
+            for (int i = 0; i < hword_count; i = i+1) begin
                 hwords[i] = data_i[i*16+:16];
             end
-            shifted_hword = hwords[addr_i[3:1]];
+            shifted_hword = hwords[addr_i[AMO_WIDTH_MSB_SELECT:1]];
             return {{64{1'b0}}, {48{sign_extend_i & shifted_hword[15]}}, shifted_hword};
         end
 
         // 8-bits AMOs
         else begin
-            automatic logic[15:0][7:0] bytes;
+            localparam hpdcache_uint byte_count = HPDcacheCfg.amoWidth / 8;
+            automatic logic[byte_count-1:0][7:0] bytes;
             automatic logic[7:0] shifted_byte;
-            for (int i = 0; i < 16; i = i+1) begin
+            for (int i = 0; i < byte_count; i = i+1) begin
                 bytes[i] = data_i[i*8+:8];
             end
-            shifted_byte = bytes[addr_i[3:0]];
+            shifted_byte = bytes[addr_i[AMO_WIDTH_MSB_SELECT:0]];
             return {{64{1'b0}}, {56{sign_extend_i & shifted_byte[7]}}, shifted_byte};
         end
     endfunction;
