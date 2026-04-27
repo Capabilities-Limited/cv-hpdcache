@@ -19,6 +19,7 @@ module hpdcache_wrapper
       nRequesters: HPDCACHE_NREQUESTERS,
       paWidth: 56,
       wordWidth: 64,
+      wordUserWidth: 1,
       sets: 64,
       ways: 8,
       clWords: 8,
@@ -51,6 +52,8 @@ module hpdcache_wrapper
       memDataWidth: 512,
       wtEn: 1'b1,
       wbEn: 1'b1,
+      userEn: 1'b0,
+      capAmoEn: 1'b0,
       lowLatency: 1'b1
   },
 
