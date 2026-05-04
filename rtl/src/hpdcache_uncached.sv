@@ -163,9 +163,9 @@ import hpdcache_pkg::*;
 //  Definition of constants and types
 //  {{{
     localparam hpdcache_uint MEM_REQ_RATIO = HPDcacheCfg.u.memDataWidth/HPDcacheCfg.reqDataWidth;
-    localparam hpdcache_uint MEM_REQ_WORD_INDEX_WIDTH = $clog2(MEM_REQ_RATIO);
+    localparam hpdcache_uint MEM_REQ_WORD_INDEX_WIDTH = hpdcache_vbits(MEM_REQ_RATIO);
     localparam hpdcache_uint REQ_MEM_RATIO = HPDcacheCfg.reqDataWidth/HPDcacheCfg.u.memDataWidth;
-    localparam hpdcache_uint REQ_MEM_WORD_INDEX_WIDTH = $clog2(REQ_MEM_RATIO);
+    localparam hpdcache_uint REQ_MEM_WORD_INDEX_WIDTH = hpdcache_vbits(REQ_MEM_RATIO);
 
     typedef enum {
         UC_IDLE,
@@ -716,7 +716,7 @@ import hpdcache_pkg::*;
 //  {{{
 
     if (HPDcacheCfg.reqDataWidth > HPDcacheCfg.amoWidth) begin : gen_amo_data_width_gt_amo_width
-        localparam hpdcache_uint AMO_WORD_INDEX_WIDTH = $clog2(HPDcacheCfg.reqDataWidth/HPDcacheCfg.amoWidth);
+        localparam hpdcache_uint AMO_WORD_INDEX_WIDTH = hpdcache_vbits(HPDcacheCfg.reqDataWidth/HPDcacheCfg.amoWidth);
         hpdcache_mux #(
             .NINPUT         (HPDcacheCfg.reqDataWidth/HPDcacheCfg.amoWidth),
             .DATA_WIDTH     (HPDcacheCfg.amoWidth),
