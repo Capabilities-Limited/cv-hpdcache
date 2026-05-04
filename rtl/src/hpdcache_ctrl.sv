@@ -280,7 +280,7 @@ import hpdcache_pkg::*;
 
     //  Definition of internal registers
     //  {{{
-    typedef logic [$clog2(HPDcacheCfg.u.rtabEntries)-1:0] rtab_ptr_t;
+    typedef logic [hpdcache_vbits(HPDcacheCfg.u.rtabEntries)-1:0] rtab_ptr_t;
 
     typedef struct packed {
         hpdcache_req_t req;

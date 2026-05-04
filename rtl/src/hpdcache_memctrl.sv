@@ -186,14 +186,14 @@ import hpdcache_pkg::*;
     //  Definition of constants and types
     //  {{{
     localparam int unsigned HPDCACHE_DIR_RAM_WIDTH = $bits(hpdcache_dir_entry_t);
-    localparam int unsigned HPDCACHE_DIR_RAM_ADDR_WIDTH = $clog2(HPDcacheCfg.u.sets);
+    localparam int unsigned HPDCACHE_DIR_RAM_ADDR_WIDTH = hpdcache_vbits(HPDcacheCfg.u.sets);
     localparam int unsigned HPDCACHE_DATA_RAM_ENTR_PER_SET = HPDcacheCfg.u.clWords/
                                                              HPDcacheCfg.u.accessWords;
     localparam int unsigned HPDCACHE_DATA_RAM_DEPTH = HPDcacheCfg.u.sets*
                                                       HPDCACHE_DATA_RAM_ENTR_PER_SET;
     localparam int unsigned HPDCACHE_DATA_RAM_WIDTH = HPDcacheCfg.u.dataWaysPerRamWord*
                                                       HPDcacheCfg.u.wordWidth;
-    localparam int unsigned HPDCACHE_DATA_RAM_ADDR_WIDTH = $clog2(HPDCACHE_DATA_RAM_DEPTH);
+    localparam int unsigned HPDCACHE_DATA_RAM_ADDR_WIDTH = hpdcache_vbits(HPDCACHE_DATA_RAM_DEPTH);
     localparam int unsigned HPDCACHE_DATA_REQ_RATIO = HPDcacheCfg.u.accessWords/
                                                       HPDcacheCfg.u.reqWords;
     localparam int unsigned HPDCACHE_DATA_RAM_Y_CUTS = HPDcacheCfg.u.ways/
@@ -207,7 +207,7 @@ import hpdcache_pkg::*;
     typedef hpdcache_data_word_t[HPDcacheCfg.u.dataWaysPerRamWord-1:0] hpdcache_data_ram_data_t;
     typedef hpdcache_data_be_t  [HPDcacheCfg.u.dataWaysPerRamWord-1:0] hpdcache_data_ram_be_t;
     typedef logic [HPDCACHE_DATA_RAM_Y_CUTS-1:0] hpdcache_data_ram_row_idx_t;
-    typedef logic [$clog2(HPDcacheCfg.u.dataWaysPerRamWord)-1:0] hpdcache_data_ram_way_idx_t;
+    typedef logic [hpdcache_vbits(HPDcacheCfg.u.dataWaysPerRamWord)-1:0] hpdcache_data_ram_way_idx_t;
     typedef logic [HPDCACHE_DATA_RAM_X_CUTS-1:0] hpdcache_data_row_enable_t;
     typedef hpdcache_data_row_enable_t [HPDCACHE_DATA_RAM_Y_CUTS-1:0] hpdcache_data_enable_t;
 
@@ -239,8 +239,7 @@ import hpdcache_pkg::*;
             input hpdcache_req_size_t size_i,
             input hpdcache_word_t     word_i);
 
-        localparam hpdcache_uint32 OffWidth =
-                HPDcacheCfg.u.accessWords > 1 ? $clog2(HPDcacheCfg.u.accessWords) : 1;
+        localparam hpdcache_uint32 OffWidth = hpdcache_vbits(HPDcacheCfg.u.accessWords);
 
         hpdcache_data_row_enable_t ret;
         hpdcache_uint32 off;
@@ -829,7 +828,7 @@ import hpdcache_pkg::*;
                 data_write        = 1'b1;
                 data_write_enable = 1'b1;
                 data_write_set    = data_refill_set_i;
-                data_write_size   = hpdcache_req_size_t'($clog2(HPDcacheCfg.accessWidth/8));
+                data_write_size   = hpdcache_req_size_t'(hpdcache_vbits(HPDcacheCfg.accessWidth/8));
                 data_write_word   = data_refill_word_i;
                 data_write_data   = data_refill_data_i;
                 data_write_be     = '1;

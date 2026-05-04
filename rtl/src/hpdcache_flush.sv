@@ -112,7 +112,7 @@ import hpdcache_pkg::*;
     //  {{{
     localparam int unsigned MemFlitPerAccess = hpdcache_max(HPDcacheCfg.accessWidth / HPDcacheCfg.u.memDataWidth, 1);
     localparam int unsigned FlushEntries = HPDcacheCfg.u.flushEntries;
-    localparam int unsigned FlushIndexWidth = (FlushEntries > 1) ? $clog2(FlushEntries) : 1;
+    localparam int unsigned FlushIndexWidth = hpdcache_vbits(FlushEntries);
     // FlushMaxEntries is equal to FlushEntries if it is a power of two
     localparam int unsigned FlushMaxEntries = 2 ** FlushIndexWidth;
 
