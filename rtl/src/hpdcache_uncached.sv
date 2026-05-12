@@ -324,18 +324,19 @@ import hpdcache_pkg::*;
     logic               lrsc_uc_hit;
     logic               lrsc_uc_set, lrsc_uc_reset;
 
-    //  NOTE: Reservation set for LR instruction is always 16-bytes in this
-    //  implementation.
+    localparam hpdcache_uint LR_RES_SHAMT = HPDcacheCfg.u.capAmoEn ? 4 : 3;
+    //  NOTE: Reservation set for LR instruction in this implementation is
+    //  16-bytes if capabilities AMOs are enabled, or 8-bytes otherwise
     assign lrsc_rsrv_nline  = lrsc_rsrv_addr_q[HPDcacheCfg.clOffsetWidth +:
                                                HPDcacheCfg.nlineWidth];
-    assign lrsc_rsrv_word   = lrsc_rsrv_addr_q[0 +: HPDcacheCfg.clOffsetWidth] >> 4;
+    assign lrsc_rsrv_word   = lrsc_rsrv_addr_q[0 +: HPDcacheCfg.clOffsetWidth] >> LR_RES_SHAMT;
 
     //  Check hit on LR/SC reservation for snoop port (normal write accesses)
-    assign lrsc_snoop_words = (lrsc_snoop_size_i < 4) ?
-            1 : hpdcache_offset_t'((8'h1 << lrsc_snoop_size_i) >> 4);
+    assign lrsc_snoop_words = (lrsc_snoop_size_i < LR_RES_SHAMT) ?
+            1 : hpdcache_offset_t'((8'h1 << lrsc_snoop_size_i) >> LR_RES_SHAMT);
     assign lrsc_snoop_nline = lrsc_snoop_addr_i[HPDcacheCfg.clOffsetWidth +:
                                                 HPDcacheCfg.nlineWidth];
-    assign lrsc_snoop_base  = lrsc_snoop_addr_i[0 +: HPDcacheCfg.clOffsetWidth] >> 4;
+    assign lrsc_snoop_base  = lrsc_snoop_addr_i[0 +: HPDcacheCfg.clOffsetWidth] >> LR_RES_SHAMT;
     assign lrsc_snoop_end   = lrsc_snoop_base + lrsc_snoop_words;
 
     assign lrsc_snoop_hit   = lrsc_rsrv_valid_q & (lrsc_rsrv_nline == lrsc_snoop_nline) &
@@ -346,7 +347,7 @@ import hpdcache_pkg::*;
 
     //  Check hit on LR/SC reservation for AMOs and SC
     assign lrsc_uc_nline    = req_addr_i[HPDcacheCfg.clOffsetWidth +: HPDcacheCfg.nlineWidth];
-    assign lrsc_uc_word     = req_addr_i[0 +: HPDcacheCfg.clOffsetWidth] >> 4;
+    assign lrsc_uc_word     = req_addr_i[0 +: HPDcacheCfg.clOffsetWidth] >> LR_RES_SHAMT;
 
     assign lrsc_uc_hit      = lrsc_rsrv_valid_q & (lrsc_rsrv_nline == lrsc_uc_nline) &
                                                   (lrsc_rsrv_word  == lrsc_uc_word);
