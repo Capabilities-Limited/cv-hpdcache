@@ -49,8 +49,7 @@ public:
     sc_out<bool> core_req_abort_o;
 
     sc_in<bool> core_rsp_valid_i;
-    //sc_in<sc_bv<HPDCACHE_CORE_RSP_WIDTH>> core_rsp_i;
-    sc_in<uint32_t> core_rsp_i;
+    sc_in<sc_bv<HPDCACHE_CORE_RSP_WIDTH>> core_rsp_i;
 
     sc_in<bool> no_inflight_requests_i;
 
