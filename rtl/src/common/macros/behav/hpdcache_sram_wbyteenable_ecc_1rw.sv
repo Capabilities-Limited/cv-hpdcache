@@ -13,6 +13,7 @@
 `include "prim_secded_inc.svh"
 
 module hpdcache_sram_wbyteenable_ecc_1rw
+    import prim_secded_pkg::*;
 #(
     parameter int unsigned ADDR_SIZE = 0,
     parameter int unsigned DATA_SIZE = 0,

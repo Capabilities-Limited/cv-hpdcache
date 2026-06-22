@@ -10,6 +10,7 @@
 //  History       :
 //
 +incdir+${HPDCACHE_DIR}/rtl/include
++incdir+${HPDCACHE_DIR}/rtl/src/utils/ecc
 ${HPDCACHE_DIR}/rtl/src/hpdcache_pkg.sv
 ${HPDCACHE_DIR}/rtl/src/utils/hpdcache_mem_req_read_arbiter.sv
 ${HPDCACHE_DIR}/rtl/src/utils/hpdcache_mem_req_write_arbiter.sv

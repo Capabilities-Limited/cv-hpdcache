@@ -39,8 +39,7 @@ module hpdcache_sram_wbyteenable
         hpdcache_sram_wbyteenable_ecc_1rw #(
             .ADDR_SIZE(ADDR_SIZE),
             .DATA_SIZE(DATA_SIZE),
-            .DEPTH(DEPTH),
-            .ATOM_SIZE(ATOM_SIZE),
+            .DEPTH(DEPTH), // This one does not yet support non-byte atom enables.
             .NDATA(NDATA)
         ) ram_i(
             .clk,
@@ -64,6 +63,7 @@ module hpdcache_sram_wbyteenable
             .ADDR_SIZE(ADDR_SIZE),
             .DATA_SIZE(DATA_SIZE),
             .DEPTH(DEPTH),
+            .ATOM_SIZE(ATOM_SIZE),
             .NDATA(NDATA)
         ) ram_i(
             .clk,
