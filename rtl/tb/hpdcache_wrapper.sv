@@ -91,7 +91,7 @@ import hpdcache_pkg::*;
     localparam type hpdcache_mem_addr_t = logic [Cfg.u.memAddrWidth-1:0],
     localparam type hpdcache_mem_id_t   = logic [Cfg.u.memIdWidth-1:0],
     localparam type hpdcache_mem_data_t = logic [Cfg.u.memDataWidth-1:0],
-    localparam type hpdcache_mem_be_t   = logic [Cfg.u.memDataWidth/8-1:0],
+    localparam type hpdcache_mem_be_t   = logic [Cfg.u.memDataWidth/((HPDcacheCfg.u.wordWidth > 8) ? 8 : HPDcacheCfg.u.wordWidth)-1:0],
     localparam type hpdcache_nline_t    = logic [Cfg.nlineWidth-1:0]
 )
     //  }}}

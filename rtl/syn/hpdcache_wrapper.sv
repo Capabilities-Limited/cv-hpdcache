@@ -66,7 +66,7 @@ module hpdcache_wrapper
   localparam type hpdcache_mem_addr_t = logic [HPDcacheCfg.u.memAddrWidth-1:0],
   localparam type hpdcache_mem_id_t = logic [HPDcacheCfg.u.memIdWidth-1:0],
   localparam type hpdcache_mem_data_t = logic [HPDcacheCfg.u.memDataWidth-1:0],
-  localparam type hpdcache_mem_be_t = logic [HPDcacheCfg.u.memDataWidth/8-1:0],
+  localparam type hpdcache_mem_be_t = logic [HPDcacheCfg.u.memDataWidth/((HPDcacheCfg.u.wordWidth > 8) ? 8 : HPDcacheCfg.u.wordWidth)-1:0],
   localparam type hpdcache_mem_req_t =
       `HPDCACHE_DECL_MEM_REQ_T(hpdcache_mem_addr_t, hpdcache_mem_id_t),
   localparam type hpdcache_mem_resp_r_t =

@@ -928,8 +928,8 @@ import hpdcache_pkg::*;
         if (REQ_MEM_RATIO == 2) begin : gen_downsize_mem_req_data
             hpdcache_req_addr_t flit_addr;
             assign flit_addr = req_addr_q + (uc_fsm_q inside {UC_MEM_WDATA2_REQ, UC_MEM_W_AND_WDATA2_REQ} ? 'h8 : 'h0);
-            assign mem_req_write_data_o.mem_req_w_data = mem_req_write_data >> (flit_addr[$clog2(HPDcacheCfg.u.memDataWidth/8) +: REQ_MEM_WORD_INDEX_WIDTH] * HPDcacheCfg.u.memDataWidth);
-            assign mem_req_write_data_o.mem_req_w_be   = req_be_q >> (flit_addr[$clog2(HPDcacheCfg.u.memDataWidth/8) +: REQ_MEM_WORD_INDEX_WIDTH] * (HPDcacheCfg.u.memDataWidth/8));
+            assign mem_req_write_data_o.mem_req_w_data = mem_req_write_data >> (flit_addr[$clog2(HPDcacheCfg.u.memDataWidth/((HPDcacheCfg.u.wordWidth > 8) ? 8 : HPDcacheCfg.u.wordWidth)) +: REQ_MEM_WORD_INDEX_WIDTH] * HPDcacheCfg.u.memDataWidth);
+            assign mem_req_write_data_o.mem_req_w_be   = req_be_q >> (flit_addr[$clog2(HPDcacheCfg.u.memDataWidth/((HPDcacheCfg.u.wordWidth > 8) ? 8 : HPDcacheCfg.u.wordWidth)) +: REQ_MEM_WORD_INDEX_WIDTH] * (HPDcacheCfg.u.memDataWidth/8));
             assign mem_req_write_data_o.mem_req_w_user = mem_req_write_user;
         end
     end else begin : gen_mem_req_write_data_default
@@ -1009,7 +1009,7 @@ import hpdcache_pkg::*;
                     .DATA_WIDTH  (HPDcacheCfg.reqWords * HPDcacheCfg.reqWordUserWidth)
                 ) user_read_rsp_mux_i(
                     .data_i      (mem_resp_read_i.mem_resp_r_user),
-                    .sel_i       (req_addr_q[$clog2(HPDcacheCfg.reqDataWidth/8) +:
+                    .sel_i       (req_addr_q[$clog2(HPDcacheCfg.reqDataWidth/((HPDcacheCfg.u.wordWidth > 8) ? 8 : HPDcacheCfg.u.wordWidth)) +:
                                              MEM_REQ_WORD_INDEX_WIDTH]),
                     .data_o      (rsp_ruser_d)
                 );

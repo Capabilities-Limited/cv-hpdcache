@@ -319,7 +319,7 @@ import hpdcache_pkg::*;
     assign flush_mem_req_wmeta = '{
         mem_req_addr: {flush_alloc_nline_i, {HPDcacheCfg.clOffsetWidth{1'b0}} },
         mem_req_len: hpdcache_mem_len_t'(MemReqFlits),
-        mem_req_size: get_hpdcache_mem_size(HPDcacheCfg.u.memDataWidth/8),
+        mem_req_size: get_hpdcache_mem_size(HPDcacheCfg.u.memDataWidth/((HPDcacheCfg.u.wordWidth > 8) ? 8 : HPDcacheCfg.u.wordWidth)),
         mem_req_id: hpdcache_mem_id_t'(flush_dir_free_ptr),
         mem_req_command: HPDCACHE_MEM_WRITE,
         mem_req_atomic: HPDCACHE_MEM_ATOMIC_ADD, /* NOP */
