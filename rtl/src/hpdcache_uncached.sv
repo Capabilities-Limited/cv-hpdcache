@@ -751,10 +751,10 @@ import hpdcache_pkg::*;
     assign amo_write_data = prepare_amo_data_result(amo_result_data, req_size_q);
     assign amo_write_user = req_is_cap ? amo_result_user : '0;
     if (HPDcacheCfg.reqDataWidth >= HPDcacheCfg.amoWidth) begin : gen_amo_ram_write_data_ge_amo_width
-        assign data_amo_write_data_o = {HPDcacheCfg.reqDataWidth/HPDcacheCfg.amoWidth{amo_write_data}};
+        assign data_amo_write_data = {HPDcacheCfg.reqDataWidth/HPDcacheCfg.amoWidth{amo_write_data}};
         assign data_amo_write_user_o = {HPDcacheCfg.reqDataWidth/HPDcacheCfg.amoWidth{amo_write_user}};
     end else begin : gen_amo_ram_write_data_lt_amo_width
-        assign data_amo_write_data_o = amo_write_data;
+        assign data_amo_write_data = amo_write_data;
         assign data_amo_write_user_o = amo_write_user;
     end
 
