@@ -127,6 +127,7 @@
         __tid_t  tid; \
         logic    error; \
         logic    aborted; \
+        logic    hit; \
         __user_t ruser; \
     }
 
