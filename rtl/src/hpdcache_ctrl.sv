@@ -453,6 +453,7 @@ import hpdcache_pkg::*;
     logic                    core_rsp_valid;
     logic                    core_rsp_error;
     logic                    core_rsp_aborted;
+    logic                    core_rsp_hit;
     hpdcache_req_tid_t       core_rsp_tid;
     hpdcache_req_sid_t       core_rsp_sid;
 
@@ -1717,6 +1718,9 @@ import hpdcache_pkg::*;
         assign core_rsp_valid = st1_rsp_valid;
         assign core_rsp_aborted = st1_rsp_aborted;
         assign core_rsp_error = st1_rsp_error;
+        assign core_rsp_hit = st1_rsp_valid && st1_req_is_load &&
+                              !st1_req_is_uncacheable && st1_dir_hit &&
+                              !st1_rsp_error;
         assign core_rsp_sid = st1_req.req.sid;
         assign core_rsp_tid = st1_req.req.tid;
     end else begin : gen_st2_core_rsp_ff
@@ -1727,12 +1731,16 @@ import hpdcache_pkg::*;
                 core_rsp_valid <= 1'b0;
                 core_rsp_aborted <= 1'b0;
                 core_rsp_error <= 1'b0;
+                core_rsp_hit <= 1'b0;
                 core_rsp_sid <= 'h0;
                 core_rsp_tid <= 'h0;
             end else begin
                 core_rsp_valid <= st1_rsp_valid;
                 core_rsp_aborted <= st1_rsp_aborted;
                 core_rsp_error <= st1_rsp_error;
+                core_rsp_hit <= st1_rsp_valid && st1_req_is_load &&
+                                !st1_req_is_uncacheable && st1_dir_hit &&
+                                !st1_rsp_error;
                 core_rsp_sid <= st1_req.req.sid;
                 core_rsp_tid <= st1_req.req.tid;
             end
@@ -1760,6 +1768,10 @@ import hpdcache_pkg::*;
                                 (uc_core_rsp_valid_i     ? uc_core_rsp_i.error :
                                                            core_rsp_error)));
     assign core_rsp_o.aborted = core_rsp_aborted;
+    assign core_rsp_o.hit     = (refill_core_rsp_valid_i ? 1'b0 :
+                                (cmo_core_rsp_valid_i    ? 1'b0 :
+                                (uc_core_rsp_valid_i     ? 1'b0 :
+                                                           core_rsp_hit)));
     if (HPDcacheCfg.u.userEn) begin : gen_core_rsp_o_ruser_useren
         assign core_rsp_o.ruser = (refill_core_rsp_valid_i ? refill_core_rsp_i.ruser :
                                   (cmo_core_rsp_valid_i    ? cmo_core_rsp_i.ruser :

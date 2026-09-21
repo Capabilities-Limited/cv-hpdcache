@@ -218,7 +218,8 @@ import hpdcache_pkg::*;
         sid: req_sid_i,
         tid: req_tid_i,
         error: 1'b0,
-        aborted: 1'b0
+        aborted: 1'b0,
+        hit: 1'b0
     };
 
     always_comb
