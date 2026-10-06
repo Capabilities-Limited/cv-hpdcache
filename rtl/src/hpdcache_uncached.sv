@@ -530,7 +530,7 @@ import hpdcache_pkg::*;
                 if (mem_req_write_data_ready_i) begin
                     uc_fsm_d = UC_MEM_WAIT_RSP;
                 end else begin
-                    uc_fsm_d = UC_MEM_WDATA_REQ;
+                    uc_fsm_d = UC_MEM_WDATA2_REQ;
                 end
             end
             //  }}}
@@ -1177,7 +1177,8 @@ import hpdcache_pkg::*;
     assert property (@(posedge clk_i) disable iff (rst_ni !== 1)
             mem_resp_read_valid_i |->
                     ((uc_fsm_q == UC_MEM_WAIT_RSP) ||
-                    ((uc_fsm_q == UC_MEM_WDATA_REQ) && req_is_amo(req_op_q)))) else
+                    ((uc_fsm_q inside {UC_MEM_WDATA_REQ, UC_MEM_WDATA2_REQ, UC_MEM_W_AND_WDATA2_REQ}) &&
+                     req_is_amo(req_op_q)))) else
                     $error("uc_handler: unexpected read response from memory");
 `endif
 //  }}}
