@@ -935,19 +935,21 @@ import hpdcache_pkg::*;
     end else begin : gen_mem_req_write_data_default
         // Currently only support MEM >= REQ
         if (MEM_REQ_RATIO > 1) begin : gen_upsize_mem_req_data
+
+            localparam int unsigned BE_WIDTH = HPDcacheCfg.reqDataWidth / ((HPDcacheCfg.u.wordWidth > 8) ? 8 : HPDcacheCfg.u.wordWidth);
+
             //  replicate data
             assign mem_req_write_data_o.mem_req_w_data = {MEM_REQ_RATIO{mem_req_write_data}};
             assign mem_req_write_data_o.mem_req_w_user = mem_req_write_user;
 
             //  demultiplex the byte-enable
             hpdcache_demux #(
-                .NOUTPUT     (MEM_REQ_RATIO),
-                .DATA_WIDTH  ((HPDcacheCfg.reqDataWidth+8-1)/8)
+                .NOUTPUT    (MEM_REQ_RATIO),
+                .DATA_WIDTH (BE_WIDTH)
             ) mem_write_be_demux_i (
-                .data_i      (req_be_q),
-                .sel_i       (req_addr_q[$clog2((HPDcacheCfg.reqDataWidth+8-1)/8) +:
-                                         MEM_REQ_WORD_INDEX_WIDTH]),
-                .data_o      (mem_req_write_data_o.mem_req_w_be)
+                .data_i     (req_be_q),
+                .sel_i      (req_addr_q[$clog2(BE_WIDTH) +: MEM_REQ_WORD_INDEX_WIDTH]),
+                .data_o     (mem_req_write_data_o.mem_req_w_be)
             );
         end
         //  memory data width is equal to the width of the core's interface
