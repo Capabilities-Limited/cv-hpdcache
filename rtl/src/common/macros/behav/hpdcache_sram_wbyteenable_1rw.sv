@@ -32,7 +32,8 @@ module hpdcache_sram_wbyteenable_1rw
     /*
      *  Internal memory array declaration
      */
-    typedef logic [NDATA-1:0][DATA_SIZE-1:0] mem_t [DEPTH];
+    localparam int unsigned MEM_WIDTH = NDATA*DATA_SIZE;
+    typedef logic [MEM_WIDTH-1:0] mem_t [DEPTH];
     mem_t mem;
 
     /*
@@ -44,7 +45,7 @@ module hpdcache_sram_wbyteenable_1rw
             if (we == 1'b1) begin
                 for (int j = 0; j < NDATA; j++) begin
                     for (int i = 0; i < (DATA_SIZE+ATOM_SIZE-1)/ATOM_SIZE; i++) begin
-                        if (wbyteenable[j][i]) mem[addr][j][i*ATOM_SIZE +: ATOM_SIZE] <= wdata[j][i*ATOM_SIZE +: ATOM_SIZE];
+                        if (wbyteenable[j][i]) mem[addr][j*DATA_SIZE + i*ATOM_SIZE +: ATOM_SIZE] <= wdata[j][i*ATOM_SIZE +: ATOM_SIZE];
                     end
                 end
             end else begin

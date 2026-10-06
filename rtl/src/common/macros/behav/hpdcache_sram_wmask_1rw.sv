@@ -31,7 +31,8 @@ module hpdcache_sram_wmask_1rw
     /*
      *  Internal memory array declaration
      */
-    typedef logic [NDATA-1:0][DATA_SIZE-1:0] mem_t [DEPTH];
+    localparam int unsigned MEM_WIDTH = NDATA*DATA_SIZE;
+    typedef logic [MEM_WIDTH-1:0] mem_t [DEPTH];
     mem_t mem;
 
     /*
