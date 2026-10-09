@@ -18,22 +18,23 @@ module hpdcache_sram_wbyteenable_ecc_1rw
     parameter int unsigned ADDR_SIZE = 0,
     parameter int unsigned DATA_SIZE = 0,
     parameter int unsigned DEPTH = 2**ADDR_SIZE,
+    parameter int unsigned ATOM_SIZE = DATA_SIZE >= 8 ? 8 : DATA_SIZE,
     parameter int unsigned NDATA = 1
 )
 (
-    input  logic                              clk,
-    input  logic                              rst_n,
-    input  logic                              cs,
-    input  logic                              we,
-    input  logic [ADDR_SIZE-1:0]              addr,
-    input  logic [NDATA-1:0][DATA_SIZE-1:0]   wdata,
-    input  logic [NDATA-1:0][DATA_SIZE/8-1:0] wbyteenable,
-    output logic [NDATA-1:0][DATA_SIZE-1:0]   rdata,
+    input  logic                                                    clk,
+    input  logic                                                    rst_n,
+    input  logic                                                    cs,
+    input  logic                                                    we,
+    input  logic [ADDR_SIZE-1:0]                                    addr,
+    input  logic [NDATA-1:0][DATA_SIZE-1:0]                         wdata,
+    input  logic [NDATA-1:0][(DATA_SIZE+ATOM_SIZE-1)/ATOM_SIZE-1:0] wbyteenable,
+    output logic [NDATA-1:0][DATA_SIZE-1:0]                         rdata,
 
-    input  logic                              err_inj_i,
-    input  logic [NDATA-1:0][DATA_SIZE-1:0]   err_inj_msk_i,
-    output logic [NDATA-1:0]                  err_cor_o,
-    output logic [NDATA-1:0]                  err_unc_o
+    input  logic                                                    err_inj_i,
+    input  logic [NDATA-1:0][DATA_SIZE-1:0]                         err_inj_msk_i,
+    output logic [NDATA-1:0]                                        err_cor_o,
+    output logic [NDATA-1:0]                                        err_unc_o
 );
 
     localparam int unsigned SYND_WIDTH = prim_secded_pkg::get_synd_width(
@@ -57,6 +58,7 @@ module hpdcache_sram_wbyteenable_ecc_1rw
         .ADDR_SIZE (ADDR_SIZE),
         .DATA_SIZE (WORD_BYTES*8),
         .DEPTH     (DEPTH),
+        .ATOM_SIZE (ATOM_SIZE),
         .NDATA     (NDATA)
     ) i_sram(
         .clk,
@@ -69,6 +71,7 @@ module hpdcache_sram_wbyteenable_ecc_1rw
         .rdata       (rdata_sram)
     );
 
+    // XXX TODO ECC code has not been adapted to handle parameterisable ATOM_SIZE
     for (genvar i = 0; i < NDATA; i++) begin : gen_ecc_enc_dec
         for (genvar j = 0; j < WORD_BYTES; j++) begin : gen_ecc_wbyteenable
             if (j < DATA_SIZE/8) begin : gen_ecc_data_wbyteenable
@@ -119,6 +122,10 @@ module hpdcache_sram_wbyteenable_ecc_1rw
 
     if ((DATA_SIZE % 8) != 0) begin : gen_data_width_assertion
         $fatal(1, $sformatf("DATA_SIZE = %0d must be a multiple of 8", DATA_SIZE));
+    end
+
+    if (ATOM_SIZE != 8) begin : gen_atom_size_assertion
+        $fatal(1, $sformatf("ATOM_SIZE = %0d must be 8", ATOM_SIZE));
     end
 `endif
     // }}}
