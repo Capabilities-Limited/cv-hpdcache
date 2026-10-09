@@ -43,9 +43,11 @@ hpdcache_sram_wmask_1rw #(
     .rdata
 );
 
-for (genvar j = 0; j < NDATA; j++) begin : gen_wmask_j
-    for (genvar i = 0; i < (DATA_SIZE+8-1)/8; i++) begin : gen_wmask_i
-        assign sram_wmask[j][(i+1)*ATOM_SIZE:i*ATOM_SIZE] = wbyteenable[i] == 1'b1 ? ATOM_SIZE'(~0) : ATOM_SIZE'(0);
+always_comb begin
+    for (int unsigned j = 0; j < NDATA; j++) begin : gen_wmask_j
+        for (int unsigned i = 0; i < (DATA_SIZE+8-1)/8; i++) begin : gen_wmask_i
+            sram_wmask[j][(i+1)*ATOM_SIZE:i*ATOM_SIZE] = wbyteenable[i] == 1'b1 ? ATOM_SIZE'(~0) : ATOM_SIZE'(0);
+        end
     end
 end
 
