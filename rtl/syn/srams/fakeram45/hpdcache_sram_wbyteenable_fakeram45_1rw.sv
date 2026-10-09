@@ -12,6 +12,7 @@ module hpdcache_sram_wbyteenable_1rw
     parameter int unsigned ADDR_SIZE = 0,
     parameter int unsigned DATA_SIZE = 0,
     parameter int unsigned DEPTH = 2**ADDR_SIZE,
+    parameter int unsigned ATOM_SIZE = DATA_SIZE >= 8 ? 8 : DATA_SIZE,
     parameter int unsigned NDATA = 1
 )
 (
@@ -24,8 +25,6 @@ module hpdcache_sram_wbyteenable_1rw
     input  logic [NDATA-1:0][(DATA_SIZE+8-1)/8-1:0] wbyteenable,
     output logic [NDATA-1:0][DATA_SIZE-1:0]         rdata
 );
-
-localparam ATOM_SIZE = DATA_SIZE >= 8 ? 8 : DATA_SIZE;
 
 logic [NDATA-1:0][DATA_SIZE-1:0] sram_wmask;
 
