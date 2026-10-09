@@ -15,17 +15,18 @@
     parameter int unsigned ADDR_SIZE = 0,
     parameter int unsigned DATA_SIZE = 0,
     parameter int unsigned DEPTH = 2**ADDR_SIZE,
+    parameter int unsigned ATOM_SIZE = DATA_SIZE >= 8 ? 8 : DATA_SIZE,
     parameter int unsigned NDATA = 1
 )
 (
-    input  logic                                    clk,
-    input  logic                                    rst_n,
-    input  logic                                    cs,
-    input  logic                                    we,
-    input  logic [ADDR_SIZE-1:0]                    addr,
-    input  logic [NDATA-1:0][DATA_SIZE-1:0]         wdata,
-    input  logic [NDATA-1:0][(DATA_SIZE+8-1)/8-1:0] wbyteenable,
-    output logic [NDATA-1:0][DATA_SIZE-1:0]         rdata
+    input  logic                                                    clk,
+    input  logic                                                    rst_n,
+    input  logic                                                    cs,
+    input  logic                                                    we,
+    input  logic [ADDR_SIZE-1:0]                                    addr,
+    input  logic [NDATA-1:0][DATA_SIZE-1:0]                         wdata,
+    input  logic [NDATA-1:0][(DATA_SIZE+ATOM_SIZE-1)/ATOM_SIZE-1:0] wbyteenable,
+    output logic [NDATA-1:0][DATA_SIZE-1:0]                         rdata
 );
 
 endmodule
