@@ -119,13 +119,14 @@ private:
                                     const sc_bv<HPDCACHE_CORE_RSP_WIDTH>& bv)
     {
         const int unsigned USER_POS = 0;
-        const int unsigned ABORTED_POS = USER_POS + HPDCACHE_RSP_USER_WIDTH;
+        const int unsigned HIT_POS = USER_POS + HPDCACHE_RSP_USER_WIDTH;
+        const int unsigned ABORTED_POS = HIT_POS + HPDCACHE_RSP_HIT_WIDTH;
         const int unsigned ERROR_POS = ABORTED_POS + HPDCACHE_RSP_ABORTED_WIDTH;
         const int unsigned TRANS_ID_POS = ERROR_POS + HPDCACHE_RSP_ERROR_WIDTH;
         const int unsigned SRC_ID_POS = TRANS_ID_POS + HPDCACHE_REQ_TRANS_ID_WIDTH;
         const int unsigned RDATA_POS = SRC_ID_POS + HPDCACHE_REQ_SRC_ID_WIDTH;
 
-        // user field not currently passed to testbench
+        // user field and hit field not currently passed to testbench
         resp.rsp_aborted =
             (bv.range(ABORTED_POS + HPDCACHE_RSP_ABORTED_WIDTH - 1, ABORTED_POS).to_uint() > 0);
         resp.rsp_error =
