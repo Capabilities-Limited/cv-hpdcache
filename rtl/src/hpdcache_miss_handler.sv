@@ -609,6 +609,7 @@ import hpdcache_pkg::*;
     assign refill_core_rsp.tid     = refill_core_rsp_tid;
     assign refill_core_rsp.error   = refill_core_rsp_error;
     assign refill_core_rsp.aborted = 1'b0;
+    assign refill_core_rsp.hit     = 1'b0;
     assign refill_core_rsp.ruser   = HPDcacheCfg.u.userEn ? refill_core_rsp_ruser : '0;
 
     hpdcache_fifo_reg #(

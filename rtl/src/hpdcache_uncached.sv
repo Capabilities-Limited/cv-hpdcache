@@ -983,6 +983,7 @@ import hpdcache_pkg::*;
     assign core_rsp_o.tid     = req_tid_q;
     assign core_rsp_o.error   = rsp_error_q;
     assign core_rsp_o.aborted = 1'b0;
+    assign core_rsp_o.hit     = 1'b0;
 
     if (HPDcacheCfg.u.capAmoEn) begin : gen_rsp_rdata_capAmoEn
         // Currently only support REQ=128, MEM=64

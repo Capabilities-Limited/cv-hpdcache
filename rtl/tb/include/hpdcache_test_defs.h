@@ -155,6 +155,7 @@
 #define HPDCACHE_REQ_USER_WIDTH 1
 #define HPDCACHE_RSP_ERROR_WIDTH 1
 #define HPDCACHE_RSP_ABORTED_WIDTH 1
+#define HPDCACHE_RSP_HIT_WIDTH 1
 #define HPDCACHE_RSP_USER_WIDTH 1
 
 #define HPDCACHE_CORE_REQ_WIDTH                                                                    \
@@ -166,7 +167,8 @@
 
 #define HPDCACHE_CORE_RSP_WIDTH                                                                    \
     ((HPDCACHE_REQ_DATA_WIDTH) + (HPDCACHE_REQ_SRC_ID_WIDTH) + (HPDCACHE_REQ_TRANS_ID_WIDTH)       \
-     + (HPDCACHE_RSP_ERROR_WIDTH) + (HPDCACHE_RSP_ABORTED_WIDTH) + (HPDCACHE_RSP_USER_WIDTH))
+     + (HPDCACHE_RSP_ERROR_WIDTH) + (HPDCACHE_RSP_ABORTED_WIDTH) + (HPDCACHE_RSP_HIT_WIDTH)        \
+     + (HPDCACHE_RSP_USER_WIDTH))
 
 #endif // __HPDCACHE_TEST_DEFS_H__
 // vim: ts=4 : sts=4 : sw=4 : et : tw=100 : spell : spelllang=en : fdm=marker
