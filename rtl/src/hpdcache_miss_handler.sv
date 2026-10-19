@@ -657,10 +657,25 @@ import hpdcache_pkg::*;
         assign refill_core_rsp_ruser = HPDcacheCfg.u.userEn ? refill_user_o : '0;
     end
 
-    /* FIXME: when multiple chunks, in case of error, the error bit is not
-     *        necessarily set on all chunks */
+    // accumulate error accross multi-flit response
+    hpdcache_mem_error_e mem_resp_acc_error_q, mem_resp_acc_error_d;
+
+    assign mem_resp_acc_error_d = (mem_resp_acc_error_q == HPDCACHE_MEM_RESP_NOK)
+                                ? HPDCACHE_MEM_RESP_NOK
+                                : mem_resp_i.mem_resp_r_error;
+
+    always_ff @(posedge clk_i or negedge rst_ni)
+    begin : mem_resp_acc_error_ff
+        if (!rst_ni) begin
+            mem_resp_acc_error_q <= HPDCACHE_MEM_RESP_OK;
+        end else if (mem_resp_valid_i && mem_resp_ready_o) begin
+            mem_resp_acc_error_q <= mem_resp_i.mem_resp_r_last ? HPDCACHE_MEM_RESP_OK
+                                                               : mem_resp_acc_error_d;
+        end
+    end
+
     assign refill_fifo_resp_meta_wdata = '{
-        r_error    : mem_resp_i.mem_resp_r_error,
+        r_error    : mem_resp_acc_error_d,
         r_id       : mem_resp_i.mem_resp_r_id,
         is_inval   : mem_resp_inval_i,
         inval_nline: mem_resp_inval_nline_i
