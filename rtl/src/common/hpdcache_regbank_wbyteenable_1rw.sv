@@ -55,6 +55,7 @@ module hpdcache_regbank_wbyteenable_1rw
         if (!rst_n) begin
             for (int i = 0; i < DEPTH; i++)
                 mem[i] <= '0;
+            rdata <= '0;
         end else begin
             if (cs == 1'b1) begin
                 if (we == 1'b1) begin

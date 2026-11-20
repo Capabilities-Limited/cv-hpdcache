@@ -263,7 +263,6 @@ import hpdcache_pkg::*;
     logic                  uc_req_need_rsp;
     hpdcache_way_vector_t  uc_req_dir_hit_way;
     hpdcache_req_data_t    uc_req_old_data;
-    logic                  uc_wbuf_flush_all;
     logic                  uc_data_amo_write;
     logic                  uc_data_amo_write_enable;
     hpdcache_set_t         uc_data_amo_write_set;
@@ -286,7 +285,6 @@ import hpdcache_pkg::*;
     hpdcache_req_addr_t    cmo_req_addr;
     hpdcache_req_sid_t     cmo_req_sid;
     hpdcache_req_tid_t     cmo_req_tid;
-    hpdcache_req_data_t    cmo_req_wdata;
     logic                  cmo_req_need_rsp;
     logic                  cmo_dirty_set_en;
     hpdcache_set_t         cmo_dirty_min_set;
@@ -294,15 +292,8 @@ import hpdcache_pkg::*;
     logic                  cmo_valid_set_en;
     hpdcache_set_t         cmo_valid_min_set;
     hpdcache_set_t         cmo_valid_max_set;
-    logic                  cmo_wbuf_flush_all;
     logic                  cmo_flush_all;
     logic                  cmo_inval_all;
-    logic                  cmo_dir_check_nline;
-    hpdcache_set_t         cmo_dir_check_nline_set;
-    hpdcache_tag_t         cmo_dir_check_nline_tag;
-    hpdcache_way_vector_t  cmo_dir_check_nline_hit_way;
-    logic                  cmo_dir_check_nline_wback;
-    logic                  cmo_dir_check_nline_dirty;
     logic                  cmo_dir_check_entry;
     hpdcache_set_t         cmo_dir_check_entry_set;
     hpdcache_way_vector_t  cmo_dir_check_entry_way;
@@ -318,7 +309,6 @@ import hpdcache_pkg::*;
     logic                  cmo_dir_updt_dirty;
     logic                  cmo_dir_updt_fetch;
     hpdcache_tag_t         cmo_dir_updt_tag;
-    logic                  cmo_wait;
     logic                  cmo_flush_alloc;
     hpdcache_nline_t       cmo_flush_alloc_nline;
     hpdcache_way_vector_t  cmo_flush_alloc_way;
@@ -458,10 +448,10 @@ import hpdcache_pkg::*;
     //  {{{
     if (HPDcacheCfg.u.wtEn && HPDcacheCfg.u.wbEn) begin : gen_cfg_default_wt_wb
         assign cfg_default_wb = cfg_default_wb_i;
-    end else if (HPDcacheCfg.u.wtEn) begin : gen_cfg_default_wt
-        assign cfg_default_wb = 1'b0;
     end else if (HPDcacheCfg.u.wbEn) begin : gen_cfg_default_wb
         assign cfg_default_wb = 1'b1;
+    end else begin : gen_cfg_default_wt
+        assign cfg_default_wb = 1'b0;
     end
 
     hpdcache_ctrl #(
@@ -507,8 +497,6 @@ import hpdcache_pkg::*;
         .core_rsp_o                         (core_rsp),
 
         .wbuf_flush_i,
-
-        .cachedir_hit_o                     (/* unused */),
 
         .st0_mshr_check_o                   (miss_mshr_check),
         .st0_mshr_check_offset_o            (miss_mshr_check_offset),
@@ -606,7 +594,6 @@ import hpdcache_pkg::*;
         .uc_req_need_rsp_o                  (uc_req_need_rsp),
         .uc_req_dir_hit_way_o               (uc_req_dir_hit_way),
         .uc_req_old_data_o                  (uc_req_old_data),
-        .uc_wbuf_flush_all_i                (uc_wbuf_flush_all),
         .uc_data_amo_write_i                (uc_data_amo_write),
         .uc_data_amo_write_enable_i         (uc_data_amo_write_enable),
         .uc_data_amo_write_set_i            (uc_data_amo_write_set),
@@ -621,11 +608,9 @@ import hpdcache_pkg::*;
         .uc_core_rsp_i                      (uc_core_rsp),
 
         .cmo_busy_i                         (~cmo_ready),
-        .cmo_wait_i                         (cmo_wait),
         .cmo_req_valid_o                    (cmo_req_valid),
         .cmo_req_op_o                       (cmo_req_op),
         .cmo_req_addr_o                     (cmo_req_addr),
-        .cmo_req_wdata_o                    (cmo_req_wdata),
         .cmo_req_sid_o                      (cmo_req_sid),
         .cmo_req_tid_o                      (cmo_req_tid),
         .cmo_req_need_rsp_o                 (cmo_req_need_rsp),
@@ -635,15 +620,8 @@ import hpdcache_pkg::*;
         .cmo_valid_set_en_o                 (cmo_valid_set_en),
         .cmo_valid_min_set_o                (cmo_valid_min_set),
         .cmo_valid_max_set_o                (cmo_valid_max_set),
-        .cmo_wbuf_flush_all_i               (cmo_wbuf_flush_all),
         .cmo_flush_all_i                    (cmo_flush_all),
         .cmo_inval_all_i                    (cmo_inval_all),
-        .cmo_dir_check_nline_i              (cmo_dir_check_nline),
-        .cmo_dir_check_nline_set_i          (cmo_dir_check_nline_set),
-        .cmo_dir_check_nline_tag_i          (cmo_dir_check_nline_tag),
-        .cmo_dir_check_nline_hit_way_o      (cmo_dir_check_nline_hit_way),
-        .cmo_dir_check_nline_wback_o        (cmo_dir_check_nline_wback),
-        .cmo_dir_check_nline_dirty_o        (cmo_dir_check_nline_dirty),
         .cmo_dir_check_entry_i              (cmo_dir_check_entry),
         .cmo_dir_check_entry_set_i          (cmo_dir_check_entry_set),
         .cmo_dir_check_entry_way_i          (cmo_dir_check_entry_way),
@@ -907,8 +885,6 @@ import hpdcache_pkg::*;
         .req_hit_way_i                 (uc_req_dir_hit_way),
         .req_old_data_i                (uc_req_old_data),
 
-        .wbuf_flush_all_o              (uc_wbuf_flush_all),
-
         .data_amo_write_o              (uc_data_amo_write),
         .data_amo_write_enable_o       (uc_data_amo_write_enable),
         .data_amo_write_set_o          (uc_data_amo_write_set),
@@ -974,20 +950,13 @@ import hpdcache_pkg::*;
         .clk_i,
         .rst_ni,
 
-        .wbuf_empty_i                  (wbuf_empty_o),
-        .mshr_empty_i                  (miss_mshr_empty),
-        .rtab_empty_i                  (rtab_empty),
-        .ctrl_empty_i                  (ctrl_empty),
-
         .req_valid_i                   (cmo_req_valid),
         .req_ready_o                   (cmo_ready),
         .req_op_i                      (cmo_req_op),
         .req_addr_i                    (cmo_req_addr),
-        .req_wdata_i                   (cmo_req_wdata),
         .req_sid_i                     (cmo_req_sid),
         .req_tid_i                     (cmo_req_tid),
         .req_need_rsp_i                (cmo_req_need_rsp),
-        .req_wait_o                    (cmo_wait),
 
         .dirty_set_en_i                (cmo_dirty_set_en),
         .dirty_min_set_i               (cmo_dirty_min_set),
@@ -1002,14 +971,6 @@ import hpdcache_pkg::*;
         .core_rsp_valid_o              (cmo_core_rsp_valid),
         .core_rsp_o                    (cmo_core_rsp),
 
-        .wbuf_flush_all_o              (cmo_wbuf_flush_all),
-
-        .dir_check_nline_o             (cmo_dir_check_nline),
-        .dir_check_nline_set_o         (cmo_dir_check_nline_set),
-        .dir_check_nline_tag_o         (cmo_dir_check_nline_tag),
-        .dir_check_nline_hit_way_i     (cmo_dir_check_nline_hit_way),
-        .dir_check_nline_wback_i       (cmo_dir_check_nline_wback),
-        .dir_check_nline_dirty_i       (cmo_dir_check_nline_dirty),
 
         .dir_check_entry_o             (cmo_dir_check_entry),
         .dir_check_entry_set_o         (cmo_dir_check_entry_set),
@@ -1203,22 +1164,31 @@ import hpdcache_pkg::*;
     //      1111...1111  -> Uncached writes
     //      1xxx...xxxx  -> Flush writes (where at least one x is 0)
     //      0xxx...xxxx  -> Write buffer writes
+    //
+    //      If only one write policy is implemented (write-through or write-back),
+    //      the ID space is split into 2 segments:
+    //      1111...1111  -> Uncached writes
+    //      xxxx...xxxx  -> Flush/Write buffer writes (where at least one x is 0)
     function automatic hpdcache_mem_req_t hpdcache_req_write_sel_id(
         hpdcache_mem_req_t req, int kind
     );
         automatic hpdcache_mem_req_t ret_req;
         ret_req = req;
-        //  Request from the write buffer
-        unique if (kind == 0) begin
-            ret_req.mem_req_id = {1'b0, req.mem_req_id[0 +: HPDcacheCfg.u.memIdWidth-1]};
-        end
-        //  Request from the flush controller
-        else if (kind == 1) begin
-            ret_req.mem_req_id = {1'b1, req.mem_req_id[0 +: HPDcacheCfg.u.memIdWidth-1]};
-        end
+
         //  Request from the uncached controller
-        else if (kind == 2) begin
+        if (kind == 2) begin
             ret_req.mem_req_id = '1;
+            return ret_req;
+        end
+
+        if (HPDcacheCfg.u.wtEn && HPDcacheCfg.u.wbEn) begin
+            unique case (kind)
+                //  Request from the write buffer
+                0: ret_req.mem_req_id = {1'b0, req.mem_req_id[0 +: HPDcacheCfg.u.memIdWidth-1]};
+
+                //  Request from the flush controller
+                1: ret_req.mem_req_id = {1'b1, req.mem_req_id[0 +: HPDcacheCfg.u.memIdWidth-1]};
+            endcase
         end
         return ret_req;
     endfunction
@@ -1228,19 +1198,36 @@ import hpdcache_pkg::*;
     );
         automatic hpdcache_mem_resp_w_t ret_resp;
         ret_resp = resp;
-        //  Response to the write buffer
-        unique if (kind == 0) begin
-            ret_resp.mem_resp_w_id = {1'b0, resp.mem_resp_w_id[0 +: HPDcacheCfg.u.memIdWidth-1]};
-        end
-        //  Response to the flush controller
-        else if (kind == 1) begin
-            ret_resp.mem_resp_w_id = {1'b0, resp.mem_resp_w_id[0 +: HPDcacheCfg.u.memIdWidth-1]};
-        end
+
         //  Response to the uncached controller
-        else if (kind == 2) begin
+        if (kind == 2) begin
             ret_resp.mem_resp_w_id = '1;
+            return ret_resp;
+        end
+
+        //  Response to the write buffer or to the flush controller
+        if (HPDcacheCfg.u.wtEn && HPDcacheCfg.u.wbEn) begin
+            ret_resp.mem_resp_w_id = {1'b0, resp.mem_resp_w_id[0 +: HPDcacheCfg.u.memIdWidth-1]};
         end
         return ret_resp;
+    endfunction
+
+    function automatic int hpdcache_resp_write_kind(
+        hpdcache_mem_id_t resp_id
+    );
+        //  Response to the uncached controller
+        if (resp_id == {HPDcacheCfg.u.memIdWidth{1'b1}}) begin
+            return 2;
+        end
+
+        //  Response to the write buffer or to the flush controller
+        if (HPDcacheCfg.u.wtEn && !HPDcacheCfg.u.wbEn) begin
+            return 0;
+        end
+        if (!HPDcacheCfg.u.wtEn && HPDcacheCfg.u.wbEn) begin
+            return 1;
+        end
+        return (resp_id[HPDcacheCfg.u.memIdWidth-1] == 1'b1) ? 1 : 0;
     endfunction
 
     assign mem_req_write_wbuf_ready        = arb_mem_req_write_ready[0];
@@ -1300,16 +1287,20 @@ import hpdcache_pkg::*;
         mem_resp_write_uc_valid = 1'b0;
         mem_resp_write_ready_o = 1'b0;
         if (mem_resp_write_valid_i) begin
-            if (mem_resp_write_i.mem_resp_w_id == {HPDcacheCfg.u.memIdWidth{1'b1}}) begin
-                mem_resp_write_uc_valid = 1'b1;
-                mem_resp_write_ready_o = mem_resp_write_uc_ready;
-            end else if (mem_resp_write_i.mem_resp_w_id[HPDcacheCfg.u.memIdWidth-1]) begin
-                mem_resp_write_flush_valid = 1'b1;
-                mem_resp_write_ready_o = mem_resp_write_flush_ready;
-            end else begin
-                mem_resp_write_wbuf_valid = 1'b1;
-                mem_resp_write_ready_o = mem_resp_write_wbuf_ready;
-            end
+            unique case (hpdcache_resp_write_kind(mem_resp_write_i.mem_resp_w_id))
+                0: begin
+                    mem_resp_write_wbuf_valid = 1'b1;
+                    mem_resp_write_ready_o = mem_resp_write_wbuf_ready;
+                end
+                1: begin
+                    mem_resp_write_flush_valid = 1'b1;
+                    mem_resp_write_ready_o = mem_resp_write_flush_ready;
+                end
+                2: begin
+                    mem_resp_write_uc_valid = 1'b1;
+                    mem_resp_write_ready_o = mem_resp_write_uc_ready;
+                end
+            endcase
         end
     end
 
@@ -1344,9 +1335,25 @@ import hpdcache_pkg::*;
     begin : gen_mem_id_mshr_width_assertion
         $fatal(1, "insufficient ID bits on the mem interface to transport reads");
     end
-    if (HPDcacheCfg.u.wtEn && (2**(HPDcacheCfg.u.memIdWidth - 1) < HPDcacheCfg.u.wbufDirEntries))
-    begin : gen_mem_id_wbuf_width_assertion
-        $fatal(1, "insufficient ID bits on the mem interface to transport writes");
+    if (HPDcacheCfg.u.wtEn && HPDcacheCfg.u.wbEn &&
+        (2**(HPDcacheCfg.u.memIdWidth - 1) < HPDcacheCfg.u.wbufDirEntries))
+    begin : gen_wt_wb_mem_id_wbuf_width_assertion
+        $fatal(1, "insufficient ID bits on the mem interface to transport wbuf writes");
+    end
+    if (HPDcacheCfg.u.wtEn && !HPDcacheCfg.u.wbEn &&
+        ((2**HPDcacheCfg.u.memIdWidth - 1) < HPDcacheCfg.u.wbufDirEntries))
+    begin : gen_wt_mem_id_wbuf_width_assertion
+        $fatal(1, "insufficient ID bits on the mem interface to transport wbuf writes");
+    end
+    if (HPDcacheCfg.u.wtEn && HPDcacheCfg.u.wbEn &&
+        ((2**(HPDcacheCfg.u.memIdWidth - 1) - 1) < HPDcacheCfg.u.flushEntries))
+    begin : gen_wt_wb_mem_id_flush_width_assertion
+        $fatal(1, "insufficient ID bits on the mem interface to transport flush writes");
+    end
+    if (!HPDcacheCfg.u.wtEn && HPDcacheCfg.u.wbEn &&
+        ((2**HPDcacheCfg.u.memIdWidth - 1) < HPDcacheCfg.u.flushEntries))
+    begin : gen_wb_mem_id_flush_width_assertion
+        $fatal(1, "insufficient ID bits on the mem interface to transport flush writes");
     end
     if (HPDcacheCfg.u.wtEn && (HPDcacheCfg.wbufDataWidth > HPDcacheCfg.u.memDataWidth))
     begin : gen_mem_data_wbuf_width_assertion
@@ -1357,11 +1364,11 @@ import hpdcache_pkg::*;
     begin : gen_mem_id_flush_width_assertion
         $fatal(1, "insufficient ID bits on the mem interface to transport flushes");
     end
-    if (!HPDcacheCfg.u.wtEn && !HPDcacheCfg.u.wbEn) begin : gen_write_policy_assertion
-        $fatal(1, "the cache shall be configured to support WT, WB or both");
-    end
     if (!HPDcacheCfg.u.lowLatency && HPDcacheCfg.u.eccEn) begin : gen_latency_and_ecc_assertion
         $fatal(1, "ECC only supported in lowLatency mode");
+    end
+    if (HPDcacheCfg.u.reqSrcIdWidth < $clog2(HPDcacheCfg.u.nRequesters)) begin : gen_sid_assertion
+        $fatal(1, "insufficient Source ID bits to identify all requesters");
     end
 `endif
     // }}}

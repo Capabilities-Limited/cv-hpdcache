@@ -985,8 +985,19 @@ import hpdcache_pkg::*;
     //  Assertions
     //  {{{
 `ifndef HPDCACHE_ASSERT_OFF
+    localparam hpdcache_uint REFILL_MEM_WORDS =
+        HPDcacheCfg.u.memDataWidth/HPDcacheCfg.u.wordWidth;
+    localparam hpdcache_uint REFILL_FIFO_WORDS_PER_ENTRY =
+        hpdcache_max(REFILL_MEM_WORDS, HPDcacheCfg.u.accessWords);
+    localparam hpdcache_uint REFILL_FIFO_WORDS =
+        REFILL_FIFO_WORDS_PER_ENTRY*HPDcacheCfg.u.refillFifoDepth;
+
+    if (REFILL_FIFO_WORDS < HPDcacheCfg.u.clWords) begin : gen_refill_depth_assertion
+        $fatal(1, "the refill fifo shall be able to buffer at least a full cacheline");
+    end
 `endif
     //  }}}
 
 endmodule
 //  }}}
+// vim: ts=4 : sts=4 : sw=4 : et : tw=100 : spell : spelllang=en : fdm=marker
