@@ -88,13 +88,15 @@ import hpdcache_pkg::*;
 
     generate
         for (gen_i = 0; gen_i < int'(HPDcacheCfg.u.nRequesters); gen_i++) begin : gen_core_req
-            assign core_req_ready_o[gen_i] = arb_req_gnt_d[gen_i] & arb_req_ready_i,
-                   core_req_valid[gen_i]   = core_req_valid_i[gen_i],
-                   core_req[gen_i]         = core_req_i[gen_i];
+            always_comb begin
+                core_req_ready_o[gen_i] = arb_req_gnt_d[gen_i] & arb_req_ready_i;
+                core_req_valid[gen_i]   = core_req_valid_i[gen_i];
+                core_req[gen_i]         = core_req_i[gen_i];
 
-            assign core_req_abort[gen_i]   = core_req_abort_i[gen_i],
-                   core_req_tag[gen_i]     = core_req_tag_i[gen_i],
-                   core_req_pma[gen_i]     = core_req_pma_i[gen_i];
+                core_req_abort[gen_i]   = core_req_abort_i[gen_i];
+                core_req_tag[gen_i]     = core_req_tag_i[gen_i];
+                core_req_pma[gen_i]     = core_req_pma_i[gen_i];
+            end
         end
     endgenerate
 

@@ -70,9 +70,11 @@ import hpdcache_pkg::*;
     genvar gen_i;
     generate
         for (gen_i = 0; gen_i < NUM_HW_PREFETCH; gen_i++) begin : gen_hwpf_stride_req
-            assign hwpf_stride_req_ready_o[gen_i] = arb_req_gnt[gen_i] & hpdcache_req_ready_i,
-                   hwpf_stride_req_valid[gen_i]   = hwpf_stride_req_valid_i[gen_i],
-                   hwpf_stride_req[gen_i]         = hwpf_stride_req_i[gen_i];
+            always_comb begin
+                hwpf_stride_req_ready_o[gen_i] = arb_req_gnt[gen_i] & hpdcache_req_ready_i;
+                hwpf_stride_req_valid[gen_i]   = hwpf_stride_req_valid_i[gen_i];
+                hwpf_stride_req[gen_i]         = hwpf_stride_req_i[gen_i];
+            end
         end
     endgenerate
 

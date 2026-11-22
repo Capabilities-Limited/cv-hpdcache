@@ -85,12 +85,13 @@ module hpdcache_l15_req_arbiter import hpdcache_pkg::*;
 
     generate
         for (gen_i = 0; gen_i < int'(N); gen_i++) begin : pack_inputs_gen
-            assign mem_arb_req_valid     [gen_i] = mem_req_valid_i[gen_i],
-                   mem_arb_req_data_valid[gen_i] = mem_req_data_valid_i[gen_i],
-                   mem_arb_req_pid       [gen_i] = mem_req_pid_i[gen_i],
-                   mem_arb_req           [gen_i] = mem_req_i[gen_i],
-                   mem_arb_req_data      [gen_i] = mem_req_data_i[gen_i];
-                  
+            always_comb begin
+                mem_arb_req_valid     [gen_i] = mem_req_valid_i[gen_i];
+                mem_arb_req_data_valid[gen_i] = mem_req_data_valid_i[gen_i];
+                mem_arb_req_pid       [gen_i] = mem_req_pid_i[gen_i];
+                mem_arb_req           [gen_i] = mem_req_i[gen_i];
+                mem_arb_req_data      [gen_i] = mem_req_data_i[gen_i];
+            end
         end
     endgenerate
 
