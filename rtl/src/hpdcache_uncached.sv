@@ -215,7 +215,7 @@ import hpdcache_pkg::*;
             shifted_byte = bytes[addr_i[AMO_WIDTH_MSB_SELECT:0]];
             return {{64{1'b0}}, {56{sign_extend_i & shifted_byte[7]}}, shifted_byte};
         end
-    endfunction;
+    endfunction
 
     function automatic logic [HPDcacheCfg.amoWidth-1:0] prepare_amo_data_result(
             input logic [HPDcacheCfg.amoWidth-1:0] data_i,
@@ -245,7 +245,7 @@ import hpdcache_pkg::*;
         else begin
             return {16{data_i[7:0]}};
         end
-    endfunction;
+    endfunction
 
     function automatic logic amo_need_sign_extend(hpdcache_uc_op_t op);
         unique case (1'b1)
