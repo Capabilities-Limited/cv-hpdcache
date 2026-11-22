@@ -78,10 +78,10 @@ import hpdcache_pkg::*;
 
     //  Control-Path
     //  {{{
-    assign full = (hpdcache_uint'(used_q) == DEPTH),
-           empty = (used_q == 0),
-           wok_o = ~full,
-           rok_o = ~empty;
+    assign full = (hpdcache_uint'(used_q) == DEPTH);
+    assign empty = (used_q == 0);
+    assign wok_o = ~full;
+    assign rok_o = ~empty;
 
     always_comb
     begin : ctrl_comb

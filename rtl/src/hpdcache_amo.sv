@@ -55,14 +55,14 @@ import hpdcache_pkg::*;
     logic        [ARITH_WIDTH-1:0] arith_result;
     logic ugt, sgt;
 
-    assign ld_data_signed = ld_data_i[ARITH_WIDTH-1:0],
-           st_data_signed = st_data_i[ARITH_WIDTH-1:0],
-           ld_data_unsigned = ld_data_i[ARITH_WIDTH-1:0],
-           st_data_unsigned = st_data_i[ARITH_WIDTH-1:0];
+    assign ld_data_signed = ld_data_i[ARITH_WIDTH-1:0];
+    assign st_data_signed = st_data_i[ARITH_WIDTH-1:0];
+    assign ld_data_unsigned = ld_data_i[ARITH_WIDTH-1:0];
+    assign st_data_unsigned = st_data_i[ARITH_WIDTH-1:0];
 
-    assign ugt = (ld_data_unsigned > st_data_unsigned),
-           sgt = (ld_data_signed   > st_data_signed),
-           sum =  ld_data_signed   + st_data_signed;
+    assign ugt = (ld_data_unsigned > st_data_unsigned);
+    assign sgt = (ld_data_signed   > st_data_signed);
+    assign sum =  ld_data_signed   + st_data_signed;
 
     always_comb
     begin : amo_compute_comb

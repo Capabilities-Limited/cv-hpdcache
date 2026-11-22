@@ -98,14 +98,14 @@ module hpdcache_fifo_reg
         //  {{{
         assign match_ptr = (wptr_q == rptr_q);
 
-        assign empty = match_ptr & ~crossover_q,
-               full  = match_ptr &  crossover_q;
+        assign empty = match_ptr & ~crossover_q;
+        assign full  = match_ptr &  crossover_q;
 
-        assign rok_o = ~empty | (FEEDTHROUGH & w_i),
-               wok_o = ~full  | (FEEDTHROUGH & r_i);
+        assign rok_o = ~empty | (FEEDTHROUGH & w_i);
+        assign wok_o = ~full  | (FEEDTHROUGH & r_i);
 
-        assign rexec = r_i & ~empty,
-               wexec = w_i & (( FEEDTHROUGH & ((empty & ~r_i) | (full & r_i) | (~full & ~empty))) |
+        assign rexec = r_i & ~empty;
+        assign wexec = w_i & (( FEEDTHROUGH & ((empty & ~r_i) | (full & r_i) | (~full & ~empty))) |
                               (~FEEDTHROUGH & ~full));
 
         //  }}}

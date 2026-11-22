@@ -181,51 +181,51 @@ module hpdcache_to_l15 import hpdcache_pkg::*, l15_pkg::*;
                                                 // Determines that the request has been processed by the L1.5
     assign req_ready_o                        = req_ready;
                                                 // Determines that a request is valid
-    assign l15_req_o.l15_val                  = req_valid,  
+    assign l15_req_o.l15_val                  = req_valid;
                                                 // Determines if we can hold the coming response
-           l15_req_o.l15_req_ack              = (mem_inval_dcache_valid) ? (mem_only_inval) ? l15_rtrn_i.l15_val & hpdc_inval_ready_i :                // DCACHE Invalidation
+    assign l15_req_o.l15_req_ack              = (mem_inval_dcache_valid) ? (mem_only_inval) ? l15_rtrn_i.l15_val & hpdc_inval_ready_i :                // DCACHE Invalidation
                                                                                               l15_rtrn_i.l15_val & hpdc_inval_ready_i & resp_ready_i : // Response + DCACHE Invalidation
-                                                                            l15_rtrn_i.l15_val & resp_ready_i,                                          // Response/ICACHE Invalidation
+                                                                            l15_rtrn_i.l15_val & resp_ready_i;                                         // Response/ICACHE Invalidation
                                                 // Request type
-           l15_req_o.l15_rqtype               = (req_is_ifill) ? L15_IMISS_RQ :
+    assign l15_req_o.l15_rqtype               = (req_is_ifill) ? L15_IMISS_RQ :
                                                 (req_is_read)  ? L15_LOAD_RQ :
-                                                (req_is_write) ? L15_STORE_RQ : L15_ATOMIC_RQ,
-           l15_req_o.l15_nc                   = ~req_i.mem_req_cacheable,
+                                                (req_is_write) ? L15_STORE_RQ : L15_ATOMIC_RQ;
+    assign l15_req_o.l15_nc                   = ~req_i.mem_req_cacheable;
                                                 // IMiss Unch: 4B Cach: 32B cacheline; Load/Store/AMO Max 16B cacheline (other possible sizes: 1,2,4,8B)
-           l15_req_o.l15_size                 = (req_is_ifill)                              ? ((req_i.mem_req_cacheable) ? 3'b110 : IcacheNoCachableSize) : // IMiss     
+    assign l15_req_o.l15_size                 = (req_is_ifill)                              ? ((req_i.mem_req_cacheable) ? 3'b110 : IcacheNoCachableSize) : // IMiss     
                                                 (req_is_write  && ~WriteByteMaskEnabled)    ? req_wt_size + 1'b1:  // Store (1/2/4/8) 
                                                 (req_is_atomic && req_i.mem_req_atomic==HPDCACHE_MEM_ATOMIC_LDEX) ? 3'b111 :
-                                                req_i.mem_req_size + 1'b1, // Load & Unc. Load &  Unc. Store (1/2/4/8) & AMO (4/8) & Store (8)
-           l15_req_o.l15_threadid             = req_thid, 
+                                                req_i.mem_req_size + 1'b1; // Load & Unc. Load &  Unc. Store (1/2/4/8) & AMO (4/8) & Store (8)
+    assign l15_req_o.l15_threadid             = req_thid;
                                                 // If WBME=0, the store req. hast to be aligned to its size (by default its aligned to WBUF entry size). 
-           l15_req_o.l15_address              = (req_is_write  && ~WriteByteMaskEnabled)    ? req_wt_address : req_i.mem_req_addr,
+    assign l15_req_o.l15_address              = (req_is_write  && ~WriteByteMaskEnabled)    ? req_wt_address : req_i.mem_req_addr;
                                                 // Swap Endiannes and replicate transfers shorter than a dword for Unc. Store requests
-           l15_req_o.l15_data                 = (SwapEndianness) ? (req_i.mem_req_cacheable) ?  swendian64(repData64(req_wdata[63:0],req_wt_offset[2:0],req_wt_size[1:0]))  :
+    assign l15_req_o.l15_data                 = (SwapEndianness) ? (req_i.mem_req_cacheable) ?  swendian64(repData64(req_wdata[63:0],req_wt_offset[2:0],req_wt_size[1:0]))  :
                                                                                                                                     swendian64(req_wdata[63:0]) : 
                                                                   (req_i.mem_req_cacheable) ?  repData64(req_wdata[63:0],req_wt_offset[2:0],req_wt_size[1:0]) :
-                                                                                                                                    req_wdata[63:0],
-           l15_req_o.l15_data_next_entry      = '0, // unused in Ariane (only used for CAS atomic requests)
-           l15_req_o.l15_csm_data             = '0, // unused in Ariane (only used for coherence domain restriction features)
-           l15_req_o.l15_amo_op               = req_amo_op_type,
-           l15_req_o.l15_prefetch             = '0, // unused in openpiton
-           l15_req_o.l15_invalidate_cacheline = '0, // unused by Ariane as L1 has no ECC at the moment
-           l15_req_o.l15_blockstore           = '0, // unused in openpiton
-           l15_req_o.l15_blockinitstore       = '0, // unused in openpiton
-           l15_req_o.l15_l1rplway             = '0, // Not used for this adapter
-           l15_req_o.l15_be                   = swendian8B(req_wbe[0 +: 8] | req_wbe[(HPDcacheMemDataWidth+8-1)/8-1 -: 8]);
+                                                                                                                                    req_wdata[63:0];
+    assign l15_req_o.l15_data_next_entry      = '0; // unused in Ariane (only used for CAS atomic requests)
+    assign l15_req_o.l15_csm_data             = '0; // unused in Ariane (only used for coherence domain restriction features)
+    assign l15_req_o.l15_amo_op               = req_amo_op_type;
+    assign l15_req_o.l15_prefetch             = '0; // unused in openpiton
+    assign l15_req_o.l15_invalidate_cacheline = '0; // unused by Ariane as L1 has no ECC at the moment
+    assign l15_req_o.l15_blockstore           = '0; // unused in openpiton
+    assign l15_req_o.l15_blockinitstore       = '0; // unused in openpiton
+    assign l15_req_o.l15_l1rplway             = '0; // Not used for this adapter
+    assign l15_req_o.l15_be                   = swendian8B(req_wbe[0 +: 8] | req_wbe[(HPDcacheMemDataWidth+8-1)/8-1 -: 8]);
 
 
     // Type of request based on the request mux index port (req_index_i: IcachePort->IMISS, DcachePort->Read DcacheWbufPort-> Write DcacheUncReadPort-> Un.Read DcacheUncWritePort-> Un. Write/AMO)
-    assign req_is_ifill                       = req_index_i[IcachePort],
-           req_is_read                        = req_index_i[DcacheReadPort]  & (req_i.mem_req_command==HPDCACHE_MEM_READ),  // Load
-           req_is_write                       = req_index_i[DcacheWritePort] & (req_i.mem_req_command==HPDCACHE_MEM_WRITE), // Store
-           req_is_atomic                      = req_index_i[DcacheWritePort] & (req_i.mem_req_command==HPDCACHE_MEM_ATOMIC); // AMO
+    assign req_is_ifill                       = req_index_i[IcachePort];
+    assign req_is_read                        = req_index_i[DcacheReadPort]  & (req_i.mem_req_command==HPDCACHE_MEM_READ);  // Load
+    assign req_is_write                       = req_index_i[DcacheWritePort] & (req_i.mem_req_command==HPDCACHE_MEM_WRITE); // Store
+    assign req_is_atomic                      = req_index_i[DcacheWritePort] & (req_i.mem_req_command==HPDCACHE_MEM_ATOMIC); // AMO
 
 
     // Data sended by the request
     // If the request is a AMO_CLR, its translated as a AMO_AND. Therefore, the data sended has to be inverted
-    assign req_wdata                          = (req_is_atomic & req_i.mem_req_atomic==HPDCACHE_MEM_ATOMIC_CLR) ? ~req_data_i.mem_req_w_data : req_data_i.mem_req_w_data,
-           req_wbe                            = req_data_i.mem_req_w_be[(HPDcacheMemDataWidth+8-1)/8-1:0]; 
+    assign req_wdata                          = (req_is_atomic & req_i.mem_req_atomic==HPDCACHE_MEM_ATOMIC_CLR) ? ~req_data_i.mem_req_w_data : req_data_i.mem_req_w_data;
+    assign req_wbe                            = req_data_i.mem_req_w_be[(HPDcacheMemDataWidth+8-1)/8-1:0]; 
     
     // }}}
 
@@ -253,13 +253,13 @@ module hpdcache_to_l15 import hpdcache_pkg::*, l15_pkg::*;
                                                                     l15_rtrn_i.l15_data_0};
 
     // Invalidation request
-    assign resp_o.mem_inval_icache_valid      = mem_inval_icache_valid,
-           resp_o.mem_inval_dcache_valid      = mem_inval_dcache_valid,
-           resp_o.mem_inval                   = l15_rtrn_i.l15_inval_address;
+    assign resp_o.mem_inval_icache_valid      = mem_inval_icache_valid;
+    assign resp_o.mem_inval_dcache_valid      = mem_inval_dcache_valid;
+    assign resp_o.mem_inval                   = l15_rtrn_i.l15_inval_address;
 
-    assign mem_inval_icache_valid             = (l15_rtrn_i.l15_inval_icache_inval || l15_rtrn_i.l15_inval_icache_all_way) & l15_rtrn_i.l15_val, 
-           mem_inval_dcache_valid             = (l15_rtrn_i.l15_inval_dcache_inval || l15_rtrn_i.l15_inval_dcache_all_way) & l15_rtrn_i.l15_val,
-           mem_only_inval                     = l15_rtrn_i.l15_returntype==L15_EVICT_REQ;
+    assign mem_inval_icache_valid             = (l15_rtrn_i.l15_inval_icache_inval || l15_rtrn_i.l15_inval_icache_all_way) & l15_rtrn_i.l15_val;
+    assign mem_inval_dcache_valid             = (l15_rtrn_i.l15_inval_dcache_inval || l15_rtrn_i.l15_inval_dcache_all_way) & l15_rtrn_i.l15_val;
+    assign mem_only_inval                     = l15_rtrn_i.l15_returntype==L15_EVICT_REQ;
     // }}}
 
 

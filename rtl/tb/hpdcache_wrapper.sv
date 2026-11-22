@@ -233,38 +233,38 @@ import hpdcache_pkg::*;
 
     //  Write/read to/from memory interfaces
     //  {{{
-    assign mem_req_read_addr_o      = mem_req_read.mem_req_addr,
-           mem_req_read_len_o       = mem_req_read.mem_req_len,
-           mem_req_read_size_o      = mem_req_read.mem_req_size,
-           mem_req_read_id_o        = mem_req_read.mem_req_id,
-           mem_req_read_command_o   = mem_req_read.mem_req_command,
-           mem_req_read_atomic_o    = mem_req_read.mem_req_atomic,
-           mem_req_read_cacheable_o = mem_req_read.mem_req_cacheable;
+    assign mem_req_read_addr_o      = mem_req_read.mem_req_addr;
+    assign mem_req_read_len_o       = mem_req_read.mem_req_len;
+    assign mem_req_read_size_o      = mem_req_read.mem_req_size;
+    assign mem_req_read_id_o        = mem_req_read.mem_req_id;
+    assign mem_req_read_command_o   = mem_req_read.mem_req_command;
+    assign mem_req_read_atomic_o    = mem_req_read.mem_req_atomic;
+    assign mem_req_read_cacheable_o = mem_req_read.mem_req_cacheable;
 
-    assign mem_resp_read.mem_resp_r_error = mem_resp_read_error_i,
-           mem_resp_read.mem_resp_r_id    = mem_resp_read_id_i,
-           mem_resp_read.mem_resp_r_data  = mem_resp_read_data_i,
-           mem_resp_read.mem_resp_r_last  = mem_resp_read_last_i,
-           mem_resp_read.mem_resp_r_user  = '0;
+    assign mem_resp_read.mem_resp_r_error = mem_resp_read_error_i;
+    assign mem_resp_read.mem_resp_r_id    = mem_resp_read_id_i;
+    assign mem_resp_read.mem_resp_r_data  = mem_resp_read_data_i;
+    assign mem_resp_read.mem_resp_r_last  = mem_resp_read_last_i;
+    assign mem_resp_read.mem_resp_r_user  = '0;
 
-    assign mem_resp_read_inval = '0,
-           mem_resp_read_inval_nline = '0;
+    assign mem_resp_read_inval = '0;
+    assign mem_resp_read_inval_nline = '0;
 
-    assign mem_req_write_addr_o      = mem_req_write.mem_req_addr,
-           mem_req_write_len_o       = mem_req_write.mem_req_len,
-           mem_req_write_size_o      = mem_req_write.mem_req_size,
-           mem_req_write_id_o        = mem_req_write.mem_req_id,
-           mem_req_write_command_o   = mem_req_write.mem_req_command,
-           mem_req_write_atomic_o    = mem_req_write.mem_req_atomic,
-           mem_req_write_cacheable_o = mem_req_write.mem_req_cacheable;
+    assign mem_req_write_addr_o      = mem_req_write.mem_req_addr;
+    assign mem_req_write_len_o       = mem_req_write.mem_req_len;
+    assign mem_req_write_size_o      = mem_req_write.mem_req_size;
+    assign mem_req_write_id_o        = mem_req_write.mem_req_id;
+    assign mem_req_write_command_o   = mem_req_write.mem_req_command;
+    assign mem_req_write_atomic_o    = mem_req_write.mem_req_atomic;
+    assign mem_req_write_cacheable_o = mem_req_write.mem_req_cacheable;
 
-    assign mem_req_write_data_o      = mem_req_write_data.mem_req_w_data,
-           mem_req_write_be_o        = mem_req_write_data.mem_req_w_be,
-           mem_req_write_last_o      = mem_req_write_data.mem_req_w_last;
+    assign mem_req_write_data_o      = mem_req_write_data.mem_req_w_data;
+    assign mem_req_write_be_o        = mem_req_write_data.mem_req_w_be;
+    assign mem_req_write_last_o      = mem_req_write_data.mem_req_w_last;
 
-    assign mem_resp_write.mem_resp_w_is_atomic = mem_resp_write_is_atomic_i,
-           mem_resp_write.mem_resp_w_error     = mem_resp_write_error_i,
-           mem_resp_write.mem_resp_w_id        = mem_resp_write_id_i;
+    assign mem_resp_write.mem_resp_w_is_atomic = mem_resp_write_is_atomic_i;
+    assign mem_resp_write.mem_resp_w_error     = mem_resp_write_error_i;
+    assign mem_resp_write.mem_resp_w_id        = mem_resp_write_id_i;
     //  }}}
 
     always_comb

@@ -172,15 +172,15 @@ import hpdcache_pkg::*;
   end
   //  }}}
 
-  assign dcache_req_valid_o        = forward_cmo,
-         dcache_req_o              = dcache_req_cmo,
-         cva6_cmo_resp_o.req_ready = ~stall;
+  assign dcache_req_valid_o        = forward_cmo;
+  assign dcache_req_o              = dcache_req_cmo;
+  assign cva6_cmo_resp_o.req_ready = ~stall;
   //  }}}
 
   //  Response forwarding
   //  {{{
-  assign cva6_cmo_resp_o.ack       = cmo_ack,
-         cva6_cmo_resp_o.trans_id  = cmo_tid_q;
+  assign cva6_cmo_resp_o.ack       = cmo_ack;
+  assign cva6_cmo_resp_o.trans_id  = cmo_tid_q;
   //  }}}
 
 endmodule

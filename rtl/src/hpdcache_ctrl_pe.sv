@@ -270,13 +270,13 @@ import hpdcache_pkg::*;
     //  Replay logic
     //  {{{
     //      Replay table allocation
-    assign st1_rtab_alloc_o          = st1_rtab_alloc          & ~st1_req_rtab_i,
-           st1_rtab_alloc_and_link_o = st1_rtab_alloc_and_link,
-           st1_rtab_rback_o          = st1_rtab_alloc          &  st1_req_rtab_i;
+    assign st1_rtab_alloc_o          = st1_rtab_alloc          & ~st1_req_rtab_i;
+    assign st1_rtab_alloc_and_link_o = st1_rtab_alloc_and_link;
+    assign st1_rtab_rback_o          = st1_rtab_alloc          &  st1_req_rtab_i;
 
     //      Performance event
-    assign evt_req_on_hold_o   = st1_rtab_alloc | st1_rtab_alloc_and_link,
-           evt_rtab_rollback_o = st1_rtab_rback_o;
+    assign evt_req_on_hold_o   = st1_rtab_alloc | st1_rtab_alloc_and_link;
+    assign evt_rtab_rollback_o = st1_rtab_rback_o;
     //  }}}
 
     //  Cachedata read enable

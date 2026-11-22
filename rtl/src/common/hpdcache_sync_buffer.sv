@@ -54,8 +54,8 @@ module hpdcache_sync_buffer
 
     //  Global control signals
     //  {{{
-    assign rok_o  =  valid_q | (FEEDTHROUGH & w_i),
-           wok_o  = ~valid_q | (FEEDTHROUGH & r_i);
+    assign rok_o  =  valid_q | (FEEDTHROUGH & w_i);
+    assign wok_o  = ~valid_q | (FEEDTHROUGH & r_i);
 
     assign buf_we = w_i & ((FEEDTHROUGH & ~(valid_q ^ r_i)) | (~FEEDTHROUGH & ~valid_q));
     //  }}}

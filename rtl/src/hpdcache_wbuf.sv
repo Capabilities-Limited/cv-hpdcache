@@ -711,14 +711,14 @@ import hpdcache_pkg::*;
             .data_o      (mem_req_be)
         );
 
-        assign mem_req_write_data_o.mem_req_w_data = {WBUF_MEM_DATA_RATIO{send_data}},
-               mem_req_write_data_o.mem_req_w_be   = mem_req_be,
-               mem_req_write_data_o.mem_req_w_user = HPDcacheCfg.u.userEn ? {WBUF_MEM_DATA_RATIO{send_user}} : '0;
+        assign mem_req_write_data_o.mem_req_w_data = {WBUF_MEM_DATA_RATIO{send_data}};
+        assign mem_req_write_data_o.mem_req_w_be   = mem_req_be;
+        assign mem_req_write_data_o.mem_req_w_user = HPDcacheCfg.u.userEn ? {WBUF_MEM_DATA_RATIO{send_user}} : '0;
 
     end else if (WBUF_MEM_DATA_RATIO == 1) begin : gen_wbuf_data_forwarding
-        assign mem_req_write_data_o.mem_req_w_data = send_data,
-               mem_req_write_data_o.mem_req_w_be   = send_be,
-               mem_req_write_data_o.mem_req_w_user = HPDcacheCfg.u.userEn ? send_user : '0;
+        assign mem_req_write_data_o.mem_req_w_data = send_data;
+        assign mem_req_write_data_o.mem_req_w_be   = send_be;
+        assign mem_req_write_data_o.mem_req_w_user = HPDcacheCfg.u.userEn ? send_user : '0;
     end
 
     assign mem_resp_write_ready_o = 1'b1;

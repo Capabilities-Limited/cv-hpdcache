@@ -133,21 +133,21 @@ import hpdcache_pkg::*;
 
     //  Dcache outputs
     //  {{{
-    assign hpdcache_req_set = request_nline_q[0 +: HPDcacheCfg.setWidth],
-           hpdcache_req_tag = request_nline_q[HPDcacheCfg.setWidth +: HPDcacheCfg.tagWidth];
+    assign hpdcache_req_set = request_nline_q[0 +: HPDcacheCfg.setWidth];
+    assign hpdcache_req_tag = request_nline_q[HPDcacheCfg.setWidth +: HPDcacheCfg.tagWidth];
 
-    assign hpdcache_req_o.addr_offset     = { hpdcache_req_set, {HPDcacheCfg.clOffsetWidth{1'b0}} },
-           hpdcache_req_o.wdata           = '0,
-           hpdcache_req_o.op              = HPDCACHE_REQ_CMO_PREFETCH,
-           hpdcache_req_o.be              = '1,
-           hpdcache_req_o.size            = '0,
-           hpdcache_req_o.sid             = '0, // this is set when connecting to the dcache
-           hpdcache_req_o.tid             = '0, // this is set by the wrapper of the prefetcher
-           hpdcache_req_o.need_rsp        = 1'b1,
-           hpdcache_req_o.phys_indexed    = 1'b1,
-           hpdcache_req_o.addr_tag        = hpdcache_req_tag,
-           hpdcache_req_o.pma.uncacheable = 1'b0,
-           hpdcache_req_o.pma.io          = 1'b0;
+    assign hpdcache_req_o.addr_offset     = { hpdcache_req_set, {HPDcacheCfg.clOffsetWidth{1'b0}} };
+    assign hpdcache_req_o.wdata           = '0;
+    assign hpdcache_req_o.op              = HPDCACHE_REQ_CMO_PREFETCH;
+    assign hpdcache_req_o.be              = '1;
+    assign hpdcache_req_o.size            = '0;
+    assign hpdcache_req_o.sid             = '0; // this is set when connecting to the dcache
+    assign hpdcache_req_o.tid             = '0; // this is set by the wrapper of the prefetcher
+    assign hpdcache_req_o.need_rsp        = 1'b1;
+    assign hpdcache_req_o.phys_indexed    = 1'b1;
+    assign hpdcache_req_o.addr_tag        = hpdcache_req_tag;
+    assign hpdcache_req_o.pma.uncacheable = 1'b0;
+    assign hpdcache_req_o.pma.io          = 1'b0;
     //  }}}
 
     //  Set state of internal registers
