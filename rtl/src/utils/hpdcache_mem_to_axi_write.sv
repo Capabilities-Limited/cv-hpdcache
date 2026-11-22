@@ -118,32 +118,32 @@ import hpdcache_pkg::*;
         endcase
     end
 
-    assign  req_ready_o                     = axi_aw_ready_i,
-            axi_aw_valid_o                  = req_valid_i,
-            axi_aw_o.id                     = req_i.mem_req_id,
-            axi_aw_o.addr                   = req_i.mem_req_addr,
-            axi_aw_o.len                    = req_i.mem_req_len,
-            axi_aw_o.size                   = req_i.mem_req_size,
-            axi_aw_o.burst                  = axi_pkg::BURST_INCR,
-            axi_aw_o.lock                   = lock,
-            axi_aw_o.cache                  = cache,
-            axi_aw_o.prot                   = '0,
-            axi_aw_o.qos                    = '0,
-            axi_aw_o.region                 = '0,
-            axi_aw_o.atop                   = atop,
-            axi_aw_o.user                   = '0;
+    assign req_ready_o                     = axi_aw_ready_i;
+    assign axi_aw_valid_o                  = req_valid_i;
+    assign axi_aw_o.id                     = req_i.mem_req_id;
+    assign axi_aw_o.addr                   = req_i.mem_req_addr;
+    assign axi_aw_o.len                    = req_i.mem_req_len;
+    assign axi_aw_o.size                   = req_i.mem_req_size;
+    assign axi_aw_o.burst                  = axi_pkg::BURST_INCR;
+    assign axi_aw_o.lock                   = lock;
+    assign axi_aw_o.cache                  = cache;
+    assign axi_aw_o.prot                   = '0;
+    assign axi_aw_o.qos                    = '0;
+    assign axi_aw_o.region                 = '0;
+    assign axi_aw_o.atop                   = atop;
+    assign axi_aw_o.user                   = '0;
 
-    assign  req_data_ready_o                = axi_w_ready_i,
-            axi_w_valid_o                   = req_data_valid_i,
-            axi_w_o.data                    = req_data_i.mem_req_w_data,
-            axi_w_o.strb                    = req_data_i.mem_req_w_be,
-            axi_w_o.last                    = req_data_i.mem_req_w_last,
-            axi_w_o.user                    = userEn ? req_data_i.mem_req_w_user : '0;
+    assign req_data_ready_o                = axi_w_ready_i;
+    assign axi_w_valid_o                   = req_data_valid_i;
+    assign axi_w_o.data                    = req_data_i.mem_req_w_data;
+    assign axi_w_o.strb                    = req_data_i.mem_req_w_be;
+    assign axi_w_o.last                    = req_data_i.mem_req_w_last;
+    assign axi_w_o.user                    = userEn ? req_data_i.mem_req_w_user : '0;
 
-    assign  axi_b_ready_o                   = resp_ready_i,
-            resp_valid_o                    = axi_b_valid_i,
-            resp_o.mem_resp_w_error         = resp,
-            resp_o.mem_resp_w_id            = axi_b_i.id,
-            resp_o.mem_resp_w_is_atomic     = (axi_b_i.resp == axi_pkg::RESP_EXOKAY);
+    assign axi_b_ready_o                   = resp_ready_i;
+    assign resp_valid_o                    = axi_b_valid_i;
+    assign resp_o.mem_resp_w_error         = resp;
+    assign resp_o.mem_resp_w_id            = axi_b_i.id;
+    assign resp_o.mem_resp_w_is_atomic     = (axi_b_i.resp == axi_pkg::RESP_EXOKAY);
 
 endmodule

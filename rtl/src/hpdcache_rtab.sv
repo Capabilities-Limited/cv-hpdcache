@@ -362,8 +362,8 @@ import hpdcache_pkg::*;
         .ready_i        (wbuf_gnt[1] & wbuf_ready)
     );
 
-    assign wbuf_pending = {|wbuf_wr_gnt, |wbuf_rd_gnt},
-           wbuf_ready   = |(pop_try_bv & (wbuf_rd_gnt | wbuf_wr_gnt));
+    assign wbuf_pending = {|wbuf_wr_gnt, |wbuf_rd_gnt};
+    assign wbuf_ready   = |(pop_try_bv & (wbuf_rd_gnt | wbuf_wr_gnt));
 
     hpdcache_fxarb #(
         .N              (2)

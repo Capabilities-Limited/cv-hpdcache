@@ -240,19 +240,19 @@ import hpdcache_pkg::*;
             .hpdcache_rsp_i       (hwpf_stride_arb_in_rsp[i])
         );
 
-        assign hwpf_stride_req_ready[i]               = hwpf_stride_arb_in_req_ready[i],
-               hwpf_stride_arb_in_req_valid[i]        = hwpf_stride_req_valid[i],
-               hwpf_stride_arb_in_req[i].addr_offset  = hwpf_stride_req[i].addr_offset,
-               hwpf_stride_arb_in_req[i].wdata        = hwpf_stride_req[i].wdata,
-               hwpf_stride_arb_in_req[i].op           = hwpf_stride_req[i].op,
-               hwpf_stride_arb_in_req[i].be           = hwpf_stride_req[i].be,
-               hwpf_stride_arb_in_req[i].size         = hwpf_stride_req[i].size,
-               hwpf_stride_arb_in_req[i].sid          = hpdcache_req_sid_i,
-               hwpf_stride_arb_in_req[i].tid          = hpdcache_req_tid_t'(i),
-               hwpf_stride_arb_in_req[i].need_rsp     = hwpf_stride_req[i].need_rsp,
-               hwpf_stride_arb_in_req[i].phys_indexed = hwpf_stride_req[i].phys_indexed,
-               hwpf_stride_arb_in_req[i].addr_tag     = '0,
-               hwpf_stride_arb_in_req[i].pma          = '0;
+        assign hwpf_stride_req_ready[i]               = hwpf_stride_arb_in_req_ready[i];
+        assign hwpf_stride_arb_in_req_valid[i]        = hwpf_stride_req_valid[i];
+        assign hwpf_stride_arb_in_req[i].addr_offset  = hwpf_stride_req[i].addr_offset;
+        assign hwpf_stride_arb_in_req[i].wdata        = hwpf_stride_req[i].wdata;
+        assign hwpf_stride_arb_in_req[i].op           = hwpf_stride_req[i].op;
+        assign hwpf_stride_arb_in_req[i].be           = hwpf_stride_req[i].be;
+        assign hwpf_stride_arb_in_req[i].size         = hwpf_stride_req[i].size;
+        assign hwpf_stride_arb_in_req[i].sid          = hpdcache_req_sid_i;
+        assign hwpf_stride_arb_in_req[i].tid          = hpdcache_req_tid_t'(i);
+        assign hwpf_stride_arb_in_req[i].need_rsp     = hwpf_stride_req[i].need_rsp;
+        assign hwpf_stride_arb_in_req[i].phys_indexed = hwpf_stride_req[i].phys_indexed;
+        assign hwpf_stride_arb_in_req[i].addr_tag     = '0;
+        assign hwpf_stride_arb_in_req[i].pma          = '0;
     end
     //  }}}
 

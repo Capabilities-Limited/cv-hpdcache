@@ -779,8 +779,8 @@ import hpdcache_pkg::*;
 
 //  Core response outputs
 //  {{{
-    assign req_ready_o      = (uc_fsm_q ==     UC_IDLE),
-           core_rsp_valid_o = (uc_fsm_q == UC_CORE_RSP);
+    assign req_ready_o      = (uc_fsm_q ==     UC_IDLE);
+    assign core_rsp_valid_o = (uc_fsm_q == UC_CORE_RSP);
 //  }}}
 
 //  Memory read request outputs
@@ -1028,8 +1028,8 @@ import hpdcache_pkg::*;
     end
 
     //  This FSM is always ready to accept the response
-    assign mem_resp_read_ready_o  = 1'b1,
-           mem_resp_write_ready_o = 1'b1;
+    assign mem_resp_read_ready_o  = 1'b1;
+    assign mem_resp_write_ready_o = 1'b1;
 //  }}}
 
 //  Set cache request registers
@@ -1079,8 +1079,8 @@ import hpdcache_pkg::*;
 //  {{{
     logic lrsc_rsrv_valid_set, lrsc_rsrv_valid_reset;
 
-    assign lrsc_rsrv_valid_set   = lrsc_uc_set,
-           lrsc_rsrv_valid_reset = lrsc_uc_reset | lrsc_snoop_reset;
+    assign lrsc_rsrv_valid_set   = lrsc_uc_set;
+    assign lrsc_rsrv_valid_reset = lrsc_uc_reset | lrsc_snoop_reset;
 
     always_ff @(posedge clk_i or negedge rst_ni)
     begin : uc_fsm_ff

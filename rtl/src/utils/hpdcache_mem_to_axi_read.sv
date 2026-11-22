@@ -72,26 +72,26 @@ import hpdcache_pkg::*;
         endcase
     end
 
-    assign  req_ready_o       = axi_ar_ready_i,
-            axi_ar_valid_o    = req_valid_i,
-            axi_ar_o.id       = req_i.mem_req_id,
-            axi_ar_o.addr     = req_i.mem_req_addr,
-            axi_ar_o.len      = req_i.mem_req_len,
-            axi_ar_o.size     = req_i.mem_req_size,
-            axi_ar_o.burst    = axi_pkg::BURST_INCR,
-            axi_ar_o.lock     = lock,
-            axi_ar_o.cache    = cache,
-            axi_ar_o.prot     = '0,
-            axi_ar_o.qos      = '0,
-            axi_ar_o.region   = '0,
-            axi_ar_o.user     = '0;
+    assign req_ready_o       = axi_ar_ready_i;
+    assign axi_ar_valid_o    = req_valid_i;
+    assign axi_ar_o.id       = req_i.mem_req_id;
+    assign axi_ar_o.addr     = req_i.mem_req_addr;
+    assign axi_ar_o.len      = req_i.mem_req_len;
+    assign axi_ar_o.size     = req_i.mem_req_size;
+    assign axi_ar_o.burst    = axi_pkg::BURST_INCR;
+    assign axi_ar_o.lock     = lock;
+    assign axi_ar_o.cache    = cache;
+    assign axi_ar_o.prot     = '0;
+    assign axi_ar_o.qos      = '0;
+    assign axi_ar_o.region   = '0;
+    assign axi_ar_o.user     = '0;
 
-    assign  axi_r_ready_o           = resp_ready_i,
-            resp_valid_o            = axi_r_valid_i,
-            resp_o.mem_resp_r_error = resp,
-            resp_o.mem_resp_r_id    = axi_r_i.id,
-            resp_o.mem_resp_r_data  = axi_r_i.data,
-            resp_o.mem_resp_r_user  = userEn ? axi_r_i.user : '0,
-            resp_o.mem_resp_r_last  = axi_r_i.last;
+    assign axi_r_ready_o           = resp_ready_i;
+    assign resp_valid_o            = axi_r_valid_i;
+    assign resp_o.mem_resp_r_error = resp;
+    assign resp_o.mem_resp_r_id    = axi_r_i.id;
+    assign resp_o.mem_resp_r_data  = axi_r_i.data;
+    assign resp_o.mem_resp_r_user  = userEn ? axi_r_i.user : '0;
+    assign resp_o.mem_resp_r_last  = axi_r_i.last;
 
 endmodule
