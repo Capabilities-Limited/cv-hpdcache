@@ -25,6 +25,7 @@
 #include "hpdcache_test_driver.h"
 #include "hpdcache_test_mem_resp_model_base.h"
 #include "hpdcache_test_sequence.h"
+#include "hpdcache_test_user.h"
 #include "logger.h"
 #include "ram_model.h"
 
@@ -178,6 +179,7 @@ public:
                << "SB.NB_MEM_READ_RESP     : " << nb_mem_read_resp << std::endl
                << "SB.NB_MEM_WRITE_REQ     : " << nb_mem_write_req << std::endl
                << "SB.NB_MEM_WRITE_RESP    : " << nb_mem_write_resp << std::endl
+               << "SB.NB_USER_CHECKS       : " << hpdcache_test_user::nb_checks << std::endl
                << "CACHE.WRITE_MISSES      : " << evt_cache_write_miss << std::endl
                << "CACHE.READ_MISSES       : " << evt_cache_read_miss << std::endl
                << "CACHE.DIR_UNC_ERRORS    : " << evt_cache_dir_unc_err << std::endl
@@ -511,6 +513,12 @@ private:
                 }
             }
 
+            //  Non-capability AMOs and SCs clear the user bits of the written word: stop checking
+            //  the user bits of these words (see hpdcache_test_user.h)
+            if (hpdcache_test_user::enabled() && (req.is_amo() || req.is_amo_sc())) {
+                hpdcache_test_user::taint(req_addr, e.bytes);
+            }
+
             //  Look for the request address into the error memory segments
             if (mem_resp_model && (!req.is_cmo() || req.is_cmo_prefetch())) {
                 e.is_error = mem_resp_model->within_error_region(e.addr, e.addr + e.bytes);
@@ -744,6 +752,32 @@ private:
                                    << " / @0x" << std::hex << aligned_addr + i << std::dec
                                    << " / actual = 0x" << std::hex << (unsigned)recv << std::dec
                                    << " / expected = 0x" << std::hex << (unsigned)expc << std::dec;
+                                print_error(ss.str());
+                            }
+                        }
+                    }
+                    //  }}}
+
+                    //  check the received user bits
+                    //  {{{
+                    if (hpdcache_test_user::enabled() && (e.is_read || e.is_amo_lr)) {
+                        const int first_word = _byte / CORE_REQ_WORD_BYTES;
+                        const int last_word = (_byte + e.bytes - 1) / CORE_REQ_WORD_BYTES;
+                        for (int i = first_word; i <= last_word; i++) {
+                            const uint64_t word_addr = aligned_addr + i * CORE_REQ_WORD_BYTES;
+                            if (hpdcache_test_user::is_tainted(word_addr)) continue;
+                            const int lo = i * HPDCACHE_USER_WORD_WIDTH;
+                            const uint32_t recv =
+                                resp.rsp_ruser.range(lo + HPDCACHE_USER_WORD_WIDTH - 1, lo)
+                                    .to_uint();
+                            const uint32_t expc = hpdcache_test_user::expected(word_addr);
+                            hpdcache_test_user::nb_checks++;
+                            if (recv != expc) {
+                                std::stringstream ss;
+                                ss << "response user bits are wrong"
+                                   << " / @0x" << std::hex << word_addr << std::dec
+                                   << " / actual = 0x" << std::hex << recv << std::dec
+                                   << " / expected = 0x" << std::hex << expc << std::dec;
                                 print_error(ss.str());
                             }
                         }
@@ -1018,6 +1052,37 @@ private:
                 print_error(ss.str());
                 continue;
             }
+
+            //  check the user bits of every written word of the flit
+            //  {{{
+            if (hpdcache_test_user::enabled()) {
+                const uint64_t flit_bytes = HPDCACHE_MEM_DATA_WIDTH / 8;
+                const unsigned wb = hpdcache_test_user::WORD_BYTES;
+                for (size_t f = 0; f < req.flits.size(); f++) {
+                    const uint64_t flit_base = align_to(req.flit_addr(f), flit_bytes);
+                    for (int k = 0; k < HPDCACHE_MEM_USER_WORDS; k++) {
+                        const uint64_t word_addr = flit_base + k * wb;
+                        if ((k + 1) * wb > flit_bytes) break;
+                        if (req.flits[f].be.range((k + 1) * wb - 1, k * wb).to_uint64() == 0)
+                            continue;
+                        if (hpdcache_test_user::is_tainted(word_addr)) continue;
+                        const int lo = k * HPDCACHE_USER_WORD_WIDTH;
+                        const int hi = lo + HPDCACHE_USER_WORD_WIDTH - 1;
+                        const uint32_t recv = req.flits[f].user.range(hi, lo).to_uint();
+                        const uint32_t expc = hpdcache_test_user::expected(word_addr);
+                        hpdcache_test_user::nb_checks++;
+                        if (recv != expc) {
+                            std::stringstream ss;
+                            ss << "memory write user bits are wrong"
+                               << " / @0x" << std::hex << word_addr << std::dec
+                               << " / actual = 0x" << std::hex << recv << std::dec
+                               << " / expected = 0x" << std::hex << expc << std::dec;
+                            print_error(ss.str());
+                        }
+                    }
+                }
+            }
+            //  }}}
 
             //  find the associated core request
             const inflight_entry_t* core_req = nullptr;

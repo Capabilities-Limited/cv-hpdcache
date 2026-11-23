@@ -15,6 +15,7 @@
 #include "driver.h"
 #include "hpdcache_test_defs.h"
 #include "hpdcache_test_transaction.h"
+#include "hpdcache_test_user.h"
 #if CONF_HPDCACHE_TEST_FAULT_INJ
 #include "hpdcache_fault_injection.h"
 #endif
@@ -97,6 +98,16 @@ private:
         sc_bv<HPDCACHE_CORE_REQ_WIDTH> ret;
 
         ret.range(USER_POS + HPDCACHE_REQ_USER_WIDTH - 1, USER_POS) = 0;
+        if (hpdcache_test_user::enabled()) {
+            //  Always send the expected user value of each word (see hpdcache_test_user.h)
+            const uint64_t req_bytes = HPDCACHE_REQ_DATA_WIDTH / 8;
+            const uint64_t aligned_addr = (t->req_addr.to_uint64() / req_bytes) * req_bytes;
+            for (int i = 0; i < HPDCACHE_REQ_WORDS; i++) {
+                const int lo = USER_POS + i * HPDCACHE_USER_WORD_WIDTH;
+                ret.range(lo + HPDCACHE_USER_WORD_WIDTH - 1, lo) = hpdcache_test_user::expected(
+                    aligned_addr + i * hpdcache_test_user::WORD_BYTES);
+            }
+        }
         ret.range(PMA_POS + HPDCACHE_REQ_PMA_WIDTH - 1, PMA_POS) = core_get_req_pma(t);
         ret.range(TAG_POS + HPDCACHE_TAG_WIDTH - 1, TAG_POS) = core_get_req_tag(t);
         ret.range(PHYS_INDEXED_POS + HPDCACHE_REQ_PHYS_INDEXED_WIDTH - 1, PHYS_INDEXED_POS) =
@@ -126,7 +137,8 @@ private:
         const int unsigned SRC_ID_POS = TRANS_ID_POS + HPDCACHE_REQ_TRANS_ID_WIDTH;
         const int unsigned RDATA_POS = SRC_ID_POS + HPDCACHE_REQ_SRC_ID_WIDTH;
 
-        // user field and hit field not currently passed to testbench
+        // hit field not currently passed to testbench
+        resp.rsp_ruser = bv.range(USER_POS + HPDCACHE_RSP_USER_WIDTH - 1, USER_POS);
         resp.rsp_aborted =
             (bv.range(ABORTED_POS + HPDCACHE_RSP_ABORTED_WIDTH - 1, ABORTED_POS).to_uint() > 0);
         resp.rsp_error =

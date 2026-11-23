@@ -96,6 +96,7 @@ public:
         top->mem_resp_read_error_i(mem_resp_read_error);
         top->mem_resp_read_id_i(mem_resp_read_id);
         top->mem_resp_read_data_i(mem_resp_read_data);
+        top->mem_resp_read_user_i(mem_resp_read_user);
         top->mem_resp_read_last_i(mem_resp_read_last);
         top->mem_req_write_ready_i(mem_req_write_ready);
         top->mem_req_write_valid_o(mem_req_write_valid);
@@ -110,6 +111,7 @@ public:
         top->mem_req_write_data_valid_o(mem_req_write_data_valid);
         top->mem_req_write_data_o(mem_req_write_data);
         top->mem_req_write_be_o(mem_req_write_be);
+        top->mem_req_write_user_o(mem_req_write_user);
         top->mem_req_write_last_o(mem_req_write_last);
         top->mem_resp_write_ready_o(mem_resp_write_ready);
         top->mem_resp_write_valid_i(mem_resp_write_valid);
@@ -176,6 +178,7 @@ public:
         hpdcache_test_mem_resp_model_i->mem_resp_read_error_o(mem_resp_read_error);
         hpdcache_test_mem_resp_model_i->mem_resp_read_id_o(mem_resp_read_id);
         hpdcache_test_mem_resp_model_i->mem_resp_read_data_o(mem_resp_read_data);
+        hpdcache_test_mem_resp_model_i->mem_resp_read_user_o(mem_resp_read_user);
         hpdcache_test_mem_resp_model_i->mem_resp_read_last_o(mem_resp_read_last);
         hpdcache_test_mem_resp_model_i->mem_req_write_ready_o(mem_req_write_ready);
         hpdcache_test_mem_resp_model_i->mem_req_write_valid_i(mem_req_write_valid);
@@ -190,6 +193,7 @@ public:
         hpdcache_test_mem_resp_model_i->mem_req_write_data_valid_i(mem_req_write_data_valid);
         hpdcache_test_mem_resp_model_i->mem_req_write_data_i(mem_req_write_data);
         hpdcache_test_mem_resp_model_i->mem_req_write_be_i(mem_req_write_be);
+        hpdcache_test_mem_resp_model_i->mem_req_write_user_i(mem_req_write_user);
         hpdcache_test_mem_resp_model_i->mem_req_write_last_i(mem_req_write_last);
         hpdcache_test_mem_resp_model_i->mem_resp_write_ready_i(mem_resp_write_ready);
         hpdcache_test_mem_resp_model_i->mem_resp_write_valid_o(mem_resp_write_valid);
@@ -383,6 +387,7 @@ private:
     sc_core::sc_signal<sc_bv<2>> mem_resp_read_error;
     sc_core::sc_signal<sc_bv<HPDCACHE_MEM_ID_WIDTH>> mem_resp_read_id;
     sc_core::sc_signal<sc_bv<HPDCACHE_MEM_DATA_WIDTH>> mem_resp_read_data;
+    sc_core::sc_signal<sc_bv<HPDCACHE_MEM_USER_PORT_WIDTH>> mem_resp_read_user;
     sc_core::sc_signal<bool> mem_resp_read_last;
     sc_core::sc_signal<bool> mem_req_write_ready;
     sc_core::sc_signal<bool> mem_req_write_valid;
@@ -397,6 +402,7 @@ private:
     sc_core::sc_signal<bool> mem_req_write_data_valid;
     sc_core::sc_signal<sc_bv<HPDCACHE_MEM_DATA_WIDTH>> mem_req_write_data;
     sc_core::sc_signal<sc_bv<HPDCACHE_MEM_DATA_WIDTH / 8>> mem_req_write_be;
+    sc_core::sc_signal<sc_bv<HPDCACHE_MEM_USER_PORT_WIDTH>> mem_req_write_user;
     sc_core::sc_signal<bool> mem_req_write_last;
     sc_core::sc_signal<bool> mem_resp_write_ready;
     sc_core::sc_signal<bool> mem_resp_write_valid;

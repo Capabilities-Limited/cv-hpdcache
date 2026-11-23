@@ -28,6 +28,7 @@
 
 #include "hpdcache_test_defs.h"
 #include "hpdcache_test_mem_resp_model_base.h"
+#include "hpdcache_test_user.h"
 #include "logger.h"
 #include "mem_model.h"
 #include <iostream>
@@ -60,6 +61,7 @@ public:
     sc_out<sc_bv<2>> mem_resp_read_error_o;
     sc_out<sc_bv<HPDCACHE_MEM_ID_WIDTH>> mem_resp_read_id_o;
     sc_out<sc_bv<HPDCACHE_MEM_DATA_WIDTH>> mem_resp_read_data_o;
+    sc_out<sc_bv<HPDCACHE_MEM_USER_PORT_WIDTH>> mem_resp_read_user_o;
     sc_out<bool> mem_resp_read_last_o;
 
     sc_out<bool> mem_req_write_ready_o;
@@ -76,6 +78,7 @@ public:
     sc_in<bool> mem_req_write_data_valid_i;
     sc_in<sc_bv<HPDCACHE_MEM_DATA_WIDTH>> mem_req_write_data_i;
     sc_in<sc_bv<HPDCACHE_MEM_DATA_WIDTH / 8>> mem_req_write_be_i;
+    sc_in<sc_bv<HPDCACHE_MEM_USER_PORT_WIDTH>> mem_req_write_user_i;
     sc_in<bool> mem_req_write_last_i;
 
     sc_in<bool> mem_resp_write_ready_i;
@@ -119,6 +122,22 @@ public:
     }
 
 private:
+    //  Expected user bits for every data word of the memory flit containing addr
+    static sc_bv<HPDCACHE_MEM_USER_PORT_WIDTH> flit_user(uint64_t addr)
+    {
+        sc_bv<HPDCACHE_MEM_USER_PORT_WIDTH> ret = 0;
+        if (hpdcache_test_user::enabled()) {
+            const uint64_t flit_bytes = HPDCACHE_MEM_DATA_WIDTH / 8;
+            const uint64_t base = (addr / flit_bytes) * flit_bytes;
+            for (int k = 0; k < HPDCACHE_MEM_USER_WORDS; k++) {
+                const int lo = k * HPDCACHE_USER_WORD_WIDTH;
+                ret.range(lo + HPDCACHE_USER_WORD_WIDTH - 1, lo) =
+                    hpdcache_test_user::expected(base + k * hpdcache_test_user::WORD_BYTES);
+            }
+        }
+        return ret;
+    }
+
     void readOperation()
     {
         hpdcache_test_transaction_mem_read_req req;
@@ -185,6 +204,7 @@ private:
             }
 
             //  send response
+            resp.user = flit_user(addr);
             resp.error = 0;
             resp.id = req.id;
             resp.last = (i == req.len);
@@ -208,6 +228,34 @@ private:
         unsigned int atop = req.atomic;
         bool is_amo = ((command == hpdcache_mem_command_e::HPDCACHE_MEM_ATOMIC)
                        && (atop != hpdcache_mem_atomic_e::HPDCACHE_MEM_ATOMIC_STEX));
+
+        //  multi-flit (burst) write: plain write of every flit, one response at the end
+        if (req.len > 0) {
+            const uint64_t flit_bytes = HPDCACHE_MEM_DATA_WIDTH / 8;
+            const uint64_t burst_end = req.flit_addr(req.len) + flit_bytes;
+            const bool error = within_error_region(addr, burst_end);
+            if (!error && !is_amo && !req.is_stex()) {
+                for (size_t f = 0; f < req.flits.size(); f++) {
+                    const uint64_t flit_word = (req.flit_addr(f) / flit_bytes) * (flit_bytes / 8);
+                    for (unsigned k = 0; k < MEM_NOC_DATA_WORDS; k++) {
+                        uint8_t be = req.flits[f].be.range((k + 1) * 8 - 1, k * 8).to_uint();
+                        if (be == 0) continue;
+                        uint64_t st_data =
+                            req.flits[f].data.range((k + 1) * 64 - 1, k * 64).to_uint64();
+                        memory_m->writeMemory(flit_word + k, st_data, mem_model::beToMask(be));
+                    }
+                }
+            }
+            if (is_amo || req.is_stex()) {
+                std::cout << sc_time_stamp().to_string()
+                          << " / Error: atomic memory writes shall be single flit" << std::endl;
+            }
+            resp.is_atomic = 0;
+            resp.error = error ? 1 : 0;
+            resp.id = req.id;
+            while (!write_resp_fifo.nb_write(resp)) wait();
+            return;
+        }
 
         //  check if the address is in an error segment. If it is, send a
         //  response with the error flag asserted
@@ -305,6 +353,7 @@ private:
                 hpdcache_test_transaction_mem_read_resp read_resp;
                 read_resp.data = 0;
                 read_resp.data.range((word + 1) * 64 - 1, word * 64) = ld_data;
+                read_resp.user = flit_user(addr);
                 read_resp.error = 0;
                 read_resp.id = req.id;
                 read_resp.last = true;
@@ -333,6 +382,7 @@ private:
             mem_resp_read_error_o.write(read_resp.error);
             mem_resp_read_id_o.write(read_resp.id);
             mem_resp_read_data_o.write(read_resp.data);
+            mem_resp_read_user_o.write(read_resp.user);
             mem_resp_read_last_o.write(read_resp.last);
             do wait();
             while (!mem_resp_read_ready_i.read());
@@ -426,6 +476,7 @@ private:
 
             r.data = mem_req_write_data_i.read();
             r.be = mem_req_write_be_i.read();
+            r.user = mem_req_write_user_i.read();
             r.last = mem_req_write_last_i.read();
             while (!write_req_data_fifo.nb_write(r)) wait();
 
@@ -441,14 +492,28 @@ private:
 
         for (;;) {
             while (!write_req_fifo.nb_read(req_meta)) wait();
-            while (!write_req_data_fifo.nb_read(req_data)) wait();
-            wait();
 
-            if (req_meta.len != 0) {
-                std::cout << sc_time_stamp().to_string()
-                          << " / Error: this model currently supports single"
-                          << " flit transactions" << std::endl;
+            //  collect all the data flits of the transaction
+            req.flits.clear();
+            for (unsigned f = 0; f <= req_meta.len; f++) {
+                while (!write_req_data_fifo.nb_read(req_data)) wait();
+                hpdcache_test_transaction_mem_write_req::flit_t flit;
+                flit.data = req_data.data;
+                flit.be = req_data.be;
+                flit.user = req_data.user;
+                req.flits.push_back(flit);
+                if (f == 0) {
+                    req.data = req_data.data;
+                    req.be = req_data.be;
+                    req.user = req_data.user;
+                }
+                if (req_data.last != (f == req_meta.len)) {
+                    std::cout << sc_time_stamp().to_string()
+                              << " / Error: unexpected position of the last flit of a memory write"
+                              << std::endl;
+                }
             }
+            wait();
 
             req.addr = req_meta.addr;
             req.len = req_meta.len;
@@ -457,9 +522,7 @@ private:
             req.command = req_meta.command;
             req.atomic = req_meta.atomic;
             req.cacheable = req_meta.cacheable;
-            req.data = req_data.data;
-            req.be = req_data.be;
-            req.last = req_data.last;
+            req.last = true;
 
             //  send request to scoreboard
             sb_mem_write_req_o.write(req);

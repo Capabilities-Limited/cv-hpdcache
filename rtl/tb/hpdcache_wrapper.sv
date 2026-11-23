@@ -73,25 +73,41 @@ import hpdcache_pkg::*;
     localparam type hpdcache_req_be_t = logic [Cfg.u.reqWords-1:0][Cfg.u.wordWidth/8-1:0],
     localparam type hpdcache_req_sid_t = logic [Cfg.u.reqSrcIdWidth-1:0],
     localparam type hpdcache_req_tid_t = logic [Cfg.u.reqTransIdWidth-1:0],
+
+    //      User bits: one field of wordUserWidth bits per data word. When user bits are
+    //      disabled, a single (unused) bit is kept so that the interfaces keep their shape.
+    localparam int unsigned UserWordWidth = Cfg.u.userEn ? Cfg.u.wordUserWidth : 1,
+    localparam int unsigned ReqUserWords  = Cfg.u.userEn ? Cfg.u.reqWords : 1,
+    localparam int unsigned MemUserWords  = Cfg.u.userEn ? Cfg.wordsPerMemFlit : 1,
+    localparam int unsigned MemUserWidth  = MemUserWords*UserWordWidth,
+    //      Width of the memory user ports seen by the SystemC testbench (at least 2 bits so
+    //      that verilator always maps them to sc_bv)
+    localparam int unsigned MemUserPortWidth = (MemUserWidth < 2) ? 2 : MemUserWidth,
+    localparam type hpdcache_req_user_t = logic [ReqUserWords-1:0][UserWordWidth-1:0],
+    localparam type hpdcache_mem_user_t = logic [MemUserWords-1:0][UserWordWidth-1:0],
+
     localparam type hpdcache_req_t =
-            `HPDCACHE_DECL_REQ_T(
+            `HPDCACHE_USEREN_DECL_REQ_T(
                     hpdcache_req_offset_t,
                     hpdcache_req_data_t,
                     hpdcache_req_be_t,
                     hpdcache_req_sid_t,
                     hpdcache_req_tid_t,
-                    hpdcache_tag_t),
+                    hpdcache_tag_t,
+                    hpdcache_req_user_t),
     localparam type hpdcache_rsp_t =
-            `HPDCACHE_DECL_RSP_T(
+            `HPDCACHE_USEREN_DECL_RSP_T(
                     hpdcache_req_data_t,
                     hpdcache_req_sid_t,
-                    hpdcache_req_tid_t),
+                    hpdcache_req_tid_t,
+                    hpdcache_req_user_t),
     //      }}}
 
     localparam type hpdcache_mem_addr_t = logic [Cfg.u.memAddrWidth-1:0],
     localparam type hpdcache_mem_id_t   = logic [Cfg.u.memIdWidth-1:0],
     localparam type hpdcache_mem_data_t = logic [Cfg.u.memDataWidth-1:0],
     localparam type hpdcache_mem_be_t   = logic [Cfg.u.memDataWidth/((Cfg.u.wordWidth > 8) ? 8 : Cfg.u.wordWidth)-1:0],
+    localparam type hpdcache_mem_user_port_t = logic [MemUserPortWidth-1:0],
     localparam type hpdcache_nline_t    = logic [Cfg.nlineWidth-1:0]
 )
     //  }}}
@@ -136,6 +152,7 @@ import hpdcache_pkg::*;
     input  wire hpdcache_mem_error_e           mem_resp_read_error_i,
     input  wire hpdcache_mem_id_t              mem_resp_read_id_i,
     input  wire hpdcache_mem_data_t            mem_resp_read_data_i,
+    input  wire hpdcache_mem_user_port_t       mem_resp_read_user_i,
     input  wire logic                          mem_resp_read_last_i,
 
     //      Memory write interface
@@ -153,6 +170,7 @@ import hpdcache_pkg::*;
     output wire logic                          mem_req_write_data_valid_o,
     output wire hpdcache_mem_data_t            mem_req_write_data_o,
     output wire hpdcache_mem_be_t              mem_req_write_be_o,
+    output wire hpdcache_mem_user_port_t       mem_req_write_user_o,
     output wire logic                          mem_req_write_last_o,
 
     output var  logic                          mem_resp_write_ready_o,
@@ -201,8 +219,10 @@ import hpdcache_pkg::*;
     //  Declaration of internal types
     //  {{{
     `HPDCACHE_TYPEDEF_MEM_REQ_T(hpdcache_mem_req_t, hpdcache_mem_addr_t, hpdcache_mem_id_t);
-    `HPDCACHE_TYPEDEF_MEM_RESP_R_T(hpdcache_mem_resp_r_t, hpdcache_mem_id_t, hpdcache_mem_data_t);
-    `HPDCACHE_TYPEDEF_MEM_REQ_W_T(hpdcache_mem_req_w_t, hpdcache_mem_data_t, hpdcache_mem_be_t);
+    `HPDCACHE_USEREN_TYPEDEF_MEM_RESP_R_T(hpdcache_mem_resp_r_t, hpdcache_mem_id_t,
+                                          hpdcache_mem_data_t, hpdcache_mem_user_t);
+    `HPDCACHE_USEREN_TYPEDEF_MEM_REQ_W_T(hpdcache_mem_req_w_t, hpdcache_mem_data_t,
+                                         hpdcache_mem_be_t, hpdcache_mem_user_t);
     `HPDCACHE_TYPEDEF_MEM_RESP_W_T(hpdcache_mem_resp_w_t, hpdcache_mem_id_t);
     //  }}}
 
@@ -245,7 +265,8 @@ import hpdcache_pkg::*;
            mem_resp_read.mem_resp_r_id    = mem_resp_read_id_i,
            mem_resp_read.mem_resp_r_data  = mem_resp_read_data_i,
            mem_resp_read.mem_resp_r_last  = mem_resp_read_last_i,
-           mem_resp_read.mem_resp_r_user  = '0;
+           mem_resp_read.mem_resp_r_user  =
+                   Cfg.u.userEn ? hpdcache_mem_user_t'(mem_resp_read_user_i[MemUserWidth-1:0]) : '0;
 
     assign mem_resp_read_inval = '0,
            mem_resp_read_inval_nline = '0;
@@ -260,7 +281,8 @@ import hpdcache_pkg::*;
 
     assign mem_req_write_data_o      = mem_req_write_data.mem_req_w_data,
            mem_req_write_be_o        = mem_req_write_data.mem_req_w_be,
-           mem_req_write_last_o      = mem_req_write_data.mem_req_w_last;
+           mem_req_write_last_o      = mem_req_write_data.mem_req_w_last,
+           mem_req_write_user_o      = hpdcache_mem_user_port_t'(mem_req_write_data.mem_req_w_user);
 
     assign mem_resp_write.mem_resp_w_is_atomic = mem_resp_write_is_atomic_i,
            mem_resp_write.mem_resp_w_error     = mem_resp_write_error_i,
@@ -305,6 +327,7 @@ import hpdcache_pkg::*;
         .hpdcache_req_tid_t                (hpdcache_req_tid_t),
         .hpdcache_req_t                    (hpdcache_req_t),
         .hpdcache_rsp_t                    (hpdcache_rsp_t),
+        .hpdcache_req_user_t               (hpdcache_req_user_t),
         .hpdcache_mem_addr_t               (hpdcache_mem_addr_t),
         .hpdcache_mem_id_t                 (hpdcache_mem_id_t),
         .hpdcache_mem_data_t               (hpdcache_mem_data_t),
@@ -312,7 +335,8 @@ import hpdcache_pkg::*;
         .hpdcache_mem_req_t                (hpdcache_mem_req_t),
         .hpdcache_mem_req_w_t              (hpdcache_mem_req_w_t),
         .hpdcache_mem_resp_r_t             (hpdcache_mem_resp_r_t),
-        .hpdcache_mem_resp_w_t             (hpdcache_mem_resp_w_t)
+        .hpdcache_mem_resp_w_t             (hpdcache_mem_resp_w_t),
+        .hpdcache_mem_user_t               (hpdcache_mem_user_t)
     ) i_hpdcache(
         .clk_i,
         .rst_ni,

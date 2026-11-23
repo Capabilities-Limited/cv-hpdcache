@@ -13,6 +13,7 @@
 #define __HPDCACHE_TEST_TRANSACTION_H__
 
 #include <sstream>
+#include <vector>
 #include <verilated.h>
 
 #include "hpdcache_fault_injection.h"
@@ -340,12 +341,14 @@ public:
     sc_bv<HPDCACHE_REQ_DATA_WIDTH> rsp_rdata;
     sc_bv<HPDCACHE_REQ_SRC_ID_WIDTH> rsp_sid;
     sc_bv<HPDCACHE_REQ_TRANS_ID_WIDTH> rsp_tid;
+    sc_bv<HPDCACHE_RSP_USER_WIDTH> rsp_ruser;
     bool rsp_error;
     bool rsp_aborted;
 
     hpdcache_test_transaction_resp()
     {
         rsp_rdata = 0;
+        rsp_ruser = 0;
         rsp_sid = 0;
         rsp_tid = 0;
         rsp_error = 0;
@@ -358,7 +361,8 @@ public:
     {
         std::stringstream os;
 
-        os << "CORE_RESP / RDATA = " << rsp_rdata.to_string(SC_HEX) << " / SID = 0x" << std::hex
+        os << "CORE_RESP / RDATA = " << rsp_rdata.to_string(SC_HEX)
+           << " / RUSER = " << rsp_ruser.to_string(SC_HEX) << " / SID = 0x" << std::hex
            << rsp_sid.to_uint() << std::dec << " / TID = 0x" << std::hex << rsp_tid.to_uint()
            << std::dec << (rsp_error ? " / ERROR" : "") << (rsp_aborted ? " / ABORTED" : "");
 
@@ -512,16 +516,36 @@ public:
 class hpdcache_test_transaction_mem_write_req : public hpdcache_test_transaction_mem_req
 {
 public:
+    //  First (or only) data flit
     sc_bv<HPDCACHE_MEM_DATA_WIDTH> data;
     sc_bv<HPDCACHE_MEM_DATA_WIDTH / 8> be;
+    sc_bv<HPDCACHE_MEM_USER_PORT_WIDTH> user;
     bool last;
+
+    //  All the data flits of the transaction (len + 1 flits), including the first one
+    struct flit_t
+    {
+        sc_bv<HPDCACHE_MEM_DATA_WIDTH> data;
+        sc_bv<HPDCACHE_MEM_DATA_WIDTH / 8> be;
+        sc_bv<HPDCACHE_MEM_USER_PORT_WIDTH> user;
+    };
+    std::vector<flit_t> flits;
 
     hpdcache_test_transaction_mem_write_req()
       : data(0)
       , be(0)
+      , user(0)
       , last(false)
       , hpdcache_test_transaction_mem_req()
     {
+    }
+
+    //  Byte address of the given flit of the transaction
+    uint64_t flit_addr(size_t f) const
+    {
+        const uint64_t flit_bytes = HPDCACHE_MEM_DATA_WIDTH / 8;
+        if (f == 0) return addr;
+        return (addr / flit_bytes) * flit_bytes + f * flit_bytes;
     }
 
     const std::string to_string() const
@@ -538,7 +562,13 @@ public:
         os << " / LEN = " << std::hex << len << std::dec << " / SIZE = " << std::hex << size
            << std::dec << " / ID = 0x" << std::hex << id << std::dec
            << " / DATA = " << data.to_string(SC_HEX) << " / BE = " << be.to_string(SC_HEX)
-           << (last ? " / LAST" : " ") << (cacheable ? " / CACHEABLE" : " / UNCACHEABLE");
+           << " / USER = " << user.to_string(SC_HEX) << (last ? " / LAST" : " ")
+           << (cacheable ? " / CACHEABLE" : " / UNCACHEABLE");
+        for (size_t f = 1; f < flits.size(); f++) {
+            os << " / FLIT[" << f << "] DATA = " << flits[f].data.to_string(SC_HEX)
+               << " BE = " << flits[f].be.to_string(SC_HEX)
+               << " USER = " << flits[f].user.to_string(SC_HEX);
+        }
         return os.str();
     }
 
@@ -556,12 +586,14 @@ public:
     uint32_t error;
     uint32_t id;
     sc_bv<HPDCACHE_MEM_DATA_WIDTH> data;
+    sc_bv<HPDCACHE_MEM_USER_PORT_WIDTH> user;
     bool last;
 
     hpdcache_test_transaction_mem_read_resp()
       : error(0)
       , id(0)
       , data(0)
+      , user(0)
       , last(false)
     {
     }
@@ -570,7 +602,8 @@ public:
     {
         std::stringstream os;
 
-        os << "MEM_READ_RESP / RDATA = " << data.to_string(SC_HEX) << " / ID = 0x" << std::hex << id
+        os << "MEM_READ_RESP / RDATA = " << data.to_string(SC_HEX)
+           << " / RUSER = " << user.to_string(SC_HEX) << " / ID = 0x" << std::hex << id
            << std::dec << (last ? " / LAST" : "") << (error != 0 ? " / ERROR" : "");
         return os.str();
     }

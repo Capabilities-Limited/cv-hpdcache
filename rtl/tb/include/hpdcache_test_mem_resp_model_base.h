@@ -93,6 +93,7 @@ protected:
     public:
         sc_bv<HPDCACHE_MEM_DATA_WIDTH> data;
         sc_bv<HPDCACHE_MEM_DATA_WIDTH / 8> be;
+        sc_bv<HPDCACHE_MEM_USER_PORT_WIDTH> user;
         bool last;
 
         const std::string to_string() const

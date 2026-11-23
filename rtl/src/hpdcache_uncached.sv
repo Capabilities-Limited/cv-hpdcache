@@ -1161,6 +1161,10 @@ import hpdcache_pkg::*;
                              req_is_amo(req_op_i))) |-> (req_size_i inside {0,1,2,3,4})) else
                     $error("uc_handler: amo requests shall be at most 16 bytes wide");
 
+    //  CHERI configuration checks. The standalone testbench models user bits on 32/64-bit
+    //  words (one user field per word, no capability AMOs), so it disables these checks by
+    //  defining HPDCACHE_USER_ANY_REQ_WIDTH.
+`ifndef HPDCACHE_USER_ANY_REQ_WIDTH
     assert property (@(posedge clk_i) disable iff (rst_ni !== 1)
             (HPDcacheCfg.u.userEn -> HPDcacheCfg.reqDataWidth == 128)) else
                     $error("uc_handler: user_bits only handled as tags on 128-bit access width");
@@ -1168,6 +1172,11 @@ import hpdcache_pkg::*;
     assert property (@(posedge clk_i) disable iff (rst_ni !== 1)
             ((HPDcacheCfg.reqDataWidth == 128) -> $bits(hpdcache_req_user_t) == 1)) else
                     $error("uc_handler: must have exactly one tag bit with 128-bit access width");
+`else
+    assert property (@(posedge clk_i) disable iff (rst_ni !== 1)
+            (HPDcacheCfg.u.userEn -> !HPDcacheCfg.u.capAmoEn)) else
+                    $error("uc_handler: capability AMOs need 128-bit accesses with one tag bit");
+`endif
 
     assert property (@(posedge clk_i) disable iff (rst_ni !== 1)
             mem_resp_write_valid_i |-> (uc_fsm_q == UC_MEM_WAIT_RSP)) else

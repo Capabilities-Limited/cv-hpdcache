@@ -61,7 +61,13 @@
 #ifndef CONF_HPDCACHE_WORD_USER_WIDTH
 #define HPDCACHE_WORD_USER_WIDTH 1
 #else
-#define HPDCACHE_WORD_USER_WIDTH (CONF_HPDCACHE_WORD_WIDTH)
+#define HPDCACHE_WORD_USER_WIDTH (CONF_HPDCACHE_WORD_USER_WIDTH)
+#endif
+
+#if defined(CONF_HPDCACHE_USER_ENABLE) && (CONF_HPDCACHE_USER_ENABLE != 0)
+#define HPDCACHE_USER_EN 1
+#else
+#define HPDCACHE_USER_EN 0
 #endif
 
 #ifndef CONF_HPDCACHE_MSHR_SETS
@@ -152,11 +158,25 @@
 #define HPDCACHE_REQ_PMA_WIDTH 5
 #define HPDCACHE_REQ_NEED_RSP_WIDTH 1
 #define HPDCACHE_REQ_PHYS_INDEXED_WIDTH 1
-#define HPDCACHE_REQ_USER_WIDTH 1
+//  User bits: one field of HPDCACHE_WORD_USER_WIDTH bits per data word. When user bits are
+//  disabled, the interfaces keep a single unused bit.
+#define HPDCACHE_USER_WORD_WIDTH (HPDCACHE_USER_EN ? (HPDCACHE_WORD_USER_WIDTH) : 1)
+#define HPDCACHE_REQ_USER_WIDTH                                                                    \
+    (HPDCACHE_USER_EN ? (HPDCACHE_REQ_WORDS) * (HPDCACHE_WORD_USER_WIDTH) : 1)
 #define HPDCACHE_RSP_ERROR_WIDTH 1
 #define HPDCACHE_RSP_ABORTED_WIDTH 1
 #define HPDCACHE_RSP_HIT_WIDTH 1
-#define HPDCACHE_RSP_USER_WIDTH 1
+#define HPDCACHE_RSP_USER_WIDTH (HPDCACHE_REQ_USER_WIDTH)
+
+//  Number of data words (and so of user fields) in a memory flit
+#define HPDCACHE_MEM_USER_WORDS                                                                    \
+    (HPDCACHE_USER_EN ? (((HPDCACHE_MEM_DATA_WIDTH) + (HPDCACHE_WORD_WIDTH) - 1)                   \
+                         / (HPDCACHE_WORD_WIDTH))                                                  \
+                      : 1)
+#define HPDCACHE_MEM_USER_WIDTH ((HPDCACHE_MEM_USER_WORDS) * (HPDCACHE_USER_WORD_WIDTH))
+//  Width of the memory user ports of the RTL wrapper (at least 2 bits, see hpdcache_wrapper.sv)
+#define HPDCACHE_MEM_USER_PORT_WIDTH                                                               \
+    ((HPDCACHE_MEM_USER_WIDTH) < 2 ? 2 : (HPDCACHE_MEM_USER_WIDTH))
 
 #define HPDCACHE_CORE_REQ_WIDTH                                                                    \
     ((HPDCACHE_ADDR_OFFSET_WIDTH) + (HPDCACHE_REQ_DATA_WIDTH) + (HPDCACHE_REQ_OP_WIDTH)            \
