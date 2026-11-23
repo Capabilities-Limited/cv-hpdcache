@@ -1193,13 +1193,23 @@ import hpdcache_pkg::*;
         if (!rst_ni) begin
             data_flush_row_index_q <= '0;
             data_flush_read_word_q <= '0;
+            data_flush_read_q      <= 1'b0;
         end else begin
             if (data_flush_read_i || (HPDcacheCfg.u.eccEn && data_err_read_i)) begin
                 data_flush_row_index_q <= data_ram_row;
                 data_flush_read_word_q <= data_flush_read_word_i;
             end
+            //  Remember whether the last read on the flush/error port was issued by the flush
+            //  controller or by the error recovery handler. This needs to be kept until the next
+            //  read because the flush controller may hold the read data for several cycles (e.g.
+            //  when the memory interface is narrower than a cacheline and the write data
+            //  resizer is full).
             if (HPDcacheCfg.u.eccEn) begin
-                data_flush_read_q <= data_flush_read_i;
+                if (data_flush_read_i) begin
+                    data_flush_read_q <= 1'b1;
+                end else if (data_err_read_i) begin
+                    data_flush_read_q <= 1'b0;
+                end
             end
         end
     end
