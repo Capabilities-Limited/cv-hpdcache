@@ -180,8 +180,12 @@ import hpdcache_pkg::*;
     input  hpdcache_word_t                      data_err_word_i,
     input  logic                                data_err_read_i,
     output hpdcache_access_data_t               data_err_rdata_o,
+    //      User bits of the whole cacheline of the way being corrected (read/written together
+    //      with the data by the error recovery handler)
+    output hpdcache_cl_user_t                   data_err_ruser_o,
     input  logic                                data_err_write_i,
-    input  hpdcache_access_data_t               data_err_wdata_i
+    input  hpdcache_access_data_t               data_err_wdata_i,
+    input  hpdcache_cl_user_t                   data_err_wuser_i
     //      }}}
 );
     //  }}}
@@ -377,6 +381,8 @@ import hpdcache_pkg::*;
     logic [HPDcacheCfg.u.ways-1:0][HPDcacheCfg.u.clWords-1:0] user_watomenable;
     hpdcache_cl_user_t        [HPDcacheCfg.u.ways-1:0] user_wentry;
     hpdcache_cl_user_t        [HPDcacheCfg.u.ways-1:0] user_rentry;
+    hpdcache_cl_user_t        [HPDcacheCfg.u.ways-1:0] user_rentry_ram;
+    logic [HPDcacheCfg.u.ways-1:0][HPDcacheCfg.u.clWords-1:0] user_ecc_cor, user_ecc_unc;
 
     hpdcache_cl_user_t data_req_read_user_cl, data_flush_read_user_cl;
 
@@ -490,23 +496,46 @@ import hpdcache_pkg::*;
 
             //  User bits
             //
+            //  When ECC is enabled, the user bits of each word are protected by their own SECDED
+            //  code (user bits of a word are always written as a whole).
             if (HPDcacheCfg.u.userEn) begin : gen_user_rentry_useren
                 hpdcache_sram_watomenable #(
                     .DATA_SIZE ($bits(hpdcache_cl_user_t)),
                     .ADDR_SIZE (HPDCACHE_DIR_RAM_ADDR_WIDTH),
-                    .ATOM_SIZE (HPDcacheCfg.u.wordUserWidth)
+                    .ATOM_SIZE (HPDcacheCfg.u.wordUserWidth),
+                    .ECC_EN    (HPDcacheCfg.u.eccEn)
                 ) user_sram (
-                    .clk         (clk_i),
-                    .rst_n       (rst_ni),
-                    .cs          (user_cs[dir_w]),
-                    .we          (user_we[dir_w]),
-                    .addr        (user_addr),
-                    .wdata       (user_wentry[dir_w]),
-                    .watomenable (user_watomenable[dir_w]),
-                    .rdata       (user_rentry[dir_w])
-                ); // XXX TODO Tag ECC
+                    .clk           (clk_i),
+                    .rst_n         (rst_ni),
+                    .cs            (user_cs[dir_w]),
+                    .we            (user_we[dir_w]),
+                    .addr          (user_addr),
+                    .wdata         (user_wentry[dir_w]),
+                    .watomenable   (user_watomenable[dir_w]),
+                    .rdata         (user_rentry_ram[dir_w]),
+                    .err_inj_i     (1'b0),
+                    .err_inj_msk_i ('0),
+                    .err_cor_o     (user_ecc_cor[dir_w]),
+                    .err_unc_o     (user_ecc_unc[dir_w])
+                );
+
+                //  Fail-safe policy for uncorrectable errors: user bits that cannot be corrected
+                //  are cleared. For CHERI capability tags this guarantees that a memory error
+                //  can never create a valid tag (on reads, nor on write-backs).
+                always_comb
+                begin : user_rentry_failsafe_comb
+                    user_rentry[dir_w] = user_rentry_ram[dir_w];
+                    if (HPDcacheCfg.u.eccEn) begin
+                        for (int w = 0; w < int'(HPDcacheCfg.u.clWords); w++) begin
+                            if (user_ecc_unc[dir_w][w]) user_rentry[dir_w][w] = '0;
+                        end
+                    end
+                end
             end else begin : gen_user_rentry_default
+                assign user_rentry_ram[dir_w] = '0;
                 assign user_rentry[dir_w] = '0;
+                assign user_ecc_cor[dir_w] = '0;
+                assign user_ecc_unc[dir_w] = '0;
             end
         end
 
@@ -539,16 +568,23 @@ import hpdcache_pkg::*;
 
         if (HPDcacheCfg.u.eccEn) begin : gen_ecc_data_err
             hpdcache_data_row_enable_t data_read_sel_q;
+            logic                      user_req_read_q;
 
             always_ff @(posedge clk_i or negedge rst_ni)
             begin : data_read_sel_ff
                 if (!rst_ni) begin
                     data_read_sel_q <= '0;
+                    user_req_read_q <= 1'b0;
                 end else begin
                     data_read_sel_q <= data_read ? word_sel_rd : '0;
+                    user_req_read_q <= HPDcacheCfg.u.userEn && data_req_read_i;
                 end
             end
 
+            //  Errors in the user bits are reported as errors in the data of the cacheline (user
+            //  bits are part of the data of the cacheline, and they are corrected/invalidated
+            //  together with it). The whole user line is checked for the reads issued by the
+            //  pipeline (core requests and scrubber).
             always_comb
             begin : ecc_data_comb
                 automatic int ram_y, ram_w;
@@ -563,6 +599,8 @@ import hpdcache_pkg::*;
                         data_err_unc_o[way] |= data_ecc_unc[ram_y][word][ram_w] &
                             data_read_sel_q[word];
                     end
+                    data_err_cor_o[way] |= (|user_ecc_cor[way]) & user_req_read_q;
+                    data_err_unc_o[way] |= (|user_ecc_unc[way]) & user_req_read_q;
                 end
             end
         end else begin : gen_noecc_data_err
@@ -954,6 +992,12 @@ import hpdcache_pkg::*;
                 data_write_word   = data_err_word_i;
                 data_write_data   = data_err_wdata_i;
                 data_write_be     = '1;
+
+                //  the error recovery handler rewrites the user bits of the whole cacheline
+                if (HPDcacheCfg.u.userEn && HPDcacheCfg.u.eccEn) begin
+                    user_watomenable  = '1;
+                    user_wentry       = {HPDcacheCfg.u.ways{data_err_wuser_i}};
+                end
             end
 
             default: begin
@@ -1012,6 +1056,7 @@ import hpdcache_pkg::*;
                            data_flush_read_i ? data_flush_read_set_i :
                            data_amo_write_i  ?  data_amo_write_set_i :
                            data_req_read_i   ?   data_req_read_set_i :
+                           (data_err_read_i || data_err_write_i) ? data_err_set_i :
                            /*data_req_write_i*/ data_req_write_set_i ;
     end else begin : gen_user_addr_default
         assign user_addr = '0;
@@ -1277,7 +1322,20 @@ import hpdcache_pkg::*;
         assign data_err_rdata_o = '0;
     end
 
-    // XXX TODO gen_err_ruser?
+    //  Corrected user bits of the cacheline being checked by the error recovery handler
+    if (HPDcacheCfg.u.eccEn && HPDcacheCfg.u.userEn) begin : gen_err_ruser_ecc
+        hpdcache_mux #(
+            .NINPUT      (HPDcacheCfg.u.ways),
+            .DATA_WIDTH  ($bits(hpdcache_cl_user_t)),
+            .ONE_HOT_SEL (1'b1)
+        ) user_read_err_mux_way_i(
+            .data_i      (user_rentry),
+            .sel_i       (data_err_way_i),
+            .data_o      (data_err_ruser_o)
+        );
+    end else begin : gen_err_ruser_noecc
+        assign data_err_ruser_o = '0;
+    end
 
     //  }}}
 

@@ -94,7 +94,6 @@ import hpdcache_pkg::*;
     input  logic                   st1_dat_err_cor_i,
     input  logic                   st1_dat_err_unc_i,
     input  logic                   st1_dat_err_unc_dirty_i,
-    // XXX TODO st1_data_err_user ?
     output logic                   st1_err_o,
     input  logic                   err_busy_i,
     input  logic                   err_wait_i,

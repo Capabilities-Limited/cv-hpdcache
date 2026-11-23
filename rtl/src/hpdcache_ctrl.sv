@@ -335,7 +335,8 @@ import hpdcache_pkg::*;
     hpdcache_access_data_t   err_dat_rdata_q, err_dat_rdata_d;
     hpdcache_word_t          err_dat_word_q;
     hpdcache_access_data_t   err_dat_wdata;
-    // XXX TODO err user?
+    hpdcache_cl_user_t       err_usr_rdata_q, err_usr_rdata_d;
+    hpdcache_cl_user_t       err_usr_wdata;
     //  }}}
 
     //  Definition of internal signals
@@ -671,7 +672,6 @@ import hpdcache_pkg::*;
         .st1_dat_err_cor_i                  (|st1_dat_err_cor),
         .st1_dat_err_unc_i                  (|st1_dat_err_unc),
         .st1_dat_err_unc_dirty_i            (|st1_dat_err_unc_dirty),
-        // XXX TODO st1_dat_err_user?
         .st1_err_o                          (st1_err_trigger),
         .err_busy_i                         (err_busy),
         .err_wait_i                         (err_wait),
@@ -1165,9 +1165,10 @@ import hpdcache_pkg::*;
         .data_err_word_i               (err_dat_word_q),
         .data_err_read_i               (err_dat_read),
         .data_err_rdata_o              (err_dat_rdata_d),
+        .data_err_ruser_o              (err_usr_rdata_d),
         .data_err_write_i              (err_dat_write),
-        .data_err_wdata_i              (err_dat_wdata)
-        // XXX TODO data_err_wuser ?
+        .data_err_wdata_i              (err_dat_wdata),
+        .data_err_wuser_i              (err_usr_wdata)
     );
 
     assign st1_dir_hit = |st1_dir_hit_way;
@@ -1294,6 +1295,7 @@ import hpdcache_pkg::*;
             err_dat_read  = 1'b0;
             err_dat_write = 1'b0;
             err_dat_wdata = '0;
+            err_usr_wdata = '0;
 
             err_dir_rdata_we = 1'b0;
             err_dat_rdata_we = 1'b0;
@@ -1338,9 +1340,11 @@ import hpdcache_pkg::*;
                     //  Invalidate the uncorrectable cacheline
                     err_dir_write = 1'b1;
                     err_dir_wdata = '0;
-                    //  Zero data words to put them in a correct state
+                    //  Zero data words (and the user bits of the cacheline) to put them in a
+                    //  correct state
                     err_dat_write = err_dat_unc_msk;
                     err_dat_wdata = '0;
+                    err_usr_wdata = '0;
 
                     //  Check next way or go to IDLE after the last one
                     if (err_way_q[HPDcacheCfg.u.ways - 1]) begin
@@ -1360,9 +1364,10 @@ import hpdcache_pkg::*;
                     //  Correct the directory entry
                     err_dir_write = err_dir_cor_msk;
                     err_dir_wdata = err_dir_rdata_q;
-                    //  Correct data words
+                    //  Correct data words (and the user bits of the cacheline)
                     err_dat_write = err_dat_cor_msk;
                     err_dat_wdata = err_dat_rdata_q;
+                    err_usr_wdata = err_usr_rdata_q;
 
                     //  Check next way or go to IDLE after the last one
                     if (err_way_q[HPDcacheCfg.u.ways - 1]) begin
@@ -1415,6 +1420,7 @@ import hpdcache_pkg::*;
             end
             if (err_dat_rdata_we) begin
                 err_dat_rdata_q <= err_dat_rdata_d;
+                err_usr_rdata_q <= err_usr_rdata_d;
             end
         end
     end else begin : gen_no_err_recovery
@@ -1427,6 +1433,7 @@ import hpdcache_pkg::*;
         assign err_dat_read   = 1'b0;
         assign err_dat_write  = 1'b0;
         assign err_dat_wdata  = 1'b0;
+        assign err_usr_wdata  = '0;
         assign err_busy       = 1'b0;
         assign err_wait       = 1'b0;
     end
