@@ -322,6 +322,10 @@ public:
             if (req_fault.domain == hpdcache_fault_injection::domain_e::CACHE_DAT) {
                 os << " / CACHE_DAT";
             }
+            if (req_fault.domain == hpdcache_fault_injection::domain_e::CACHE_USR) {
+                os << " / CACHE_USR / WORD = " << req_fault.word << " / MASK = 0x" << std::hex
+                   << req_fault.fault_mask.range(31, 0).to_uint() << std::dec;
+            }
         }
 
         return os.str();

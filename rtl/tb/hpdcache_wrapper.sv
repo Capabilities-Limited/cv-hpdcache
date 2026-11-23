@@ -187,6 +187,10 @@ import hpdcache_pkg::*;
     output wire  logic                         evt_cache_dat_unc_err_o,
     output wire  logic                         evt_cache_dat_cor_err_o,
     output wire  logic                         evt_scrub_complete_o,
+    //      Testbench-only observation of the ECC errors detected in the user bits SRAMs (also
+    //      reported, by the cache, as data errors)
+    output wire  logic                         evt_cache_usr_unc_err_o,
+    output wire  logic                         evt_cache_usr_cor_err_o,
     output wire  logic                         evt_uncached_req_o,
     output wire  logic                         evt_cmo_req_o,
     output wire  logic                         evt_write_req_o,
@@ -408,6 +412,21 @@ import hpdcache_pkg::*;
         .cfg_scrub_period_i,
         .cfg_scrub_restart_i
     );
+
+    //  Observation of the ECC errors in the user bits SRAMs (core/scrubber reads)
+    //  {{{
+    if (Cfg.u.userEn && Cfg.u.eccEn) begin : gen_evt_usr_err
+        assign evt_cache_usr_cor_err_o =
+            i_hpdcache.hpdcache_ctrl_i.hpdcache_memctrl_i.gen_ecc_data_err.user_req_read_q &&
+            (|i_hpdcache.hpdcache_ctrl_i.hpdcache_memctrl_i.user_ecc_cor);
+        assign evt_cache_usr_unc_err_o =
+            i_hpdcache.hpdcache_ctrl_i.hpdcache_memctrl_i.gen_ecc_data_err.user_req_read_q &&
+            (|i_hpdcache.hpdcache_ctrl_i.hpdcache_memctrl_i.user_ecc_unc);
+    end else begin : gen_no_evt_usr_err
+        assign evt_cache_usr_cor_err_o = 1'b0;
+        assign evt_cache_usr_unc_err_o = 1'b0;
+    end
+    //  }}}
 
     //  Assertions/Coverage
     //  {{{

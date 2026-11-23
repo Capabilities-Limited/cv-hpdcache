@@ -46,4 +46,24 @@ module hpdcache_sram_watomenable_1rw
         end
         //rdata <= mem[addr];
     end : mem_update_ff
+
+    //  DPI
+    //  {{{
+`ifdef HPDCACHE_DPI_ON
+    export "DPI-C" task publicSramWaSetMask;
+    export "DPI-C" task publicSramWaSetData;
+
+    task automatic publicSramWaSetMask;
+        input int index;
+        input logic [DATA_SIZE-1:0] mask;
+        mem[index] ^= mask;
+    endtask
+
+    task automatic publicSramWaSetData;
+        input int index;
+        input logic [DATA_SIZE-1:0] data;
+        mem[index] = data;
+    endtask
+`endif
+    //  }}}
 endmodule : hpdcache_sram_watomenable_1rw

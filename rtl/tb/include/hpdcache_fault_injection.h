@@ -26,8 +26,18 @@ public:
     enum class domain_e : int
     {
         CACHE_DIR = 0,
-        CACHE_DAT = 1
+        CACHE_DAT = 1,
+        CACHE_USR = 2 //  user bits (e.g. CHERI tags) of the cacheline
     };
+
+    //  Width of the ECC codeword protecting the user bits of one word (see
+    //  hpdcache_sram_watomenable_ecc_1rw.sv)
+    static constexpr int getUsrCodewordBits()
+    {
+        int r = 1;
+        while ((1 << r) < (HPDCACHE_USER_WORD_WIDTH + r + 1)) r++;
+        return HPDCACHE_USER_WORD_WIDTH + r + 1;
+    }
 
 private:
     static constexpr int DATA_ROWS = CONF_HPDCACHE_WAYS / CONF_HPDCACHE_DATA_WAYS_PER_RAM_WORD;
@@ -35,6 +45,7 @@ private:
 
     svScope dirScopes[CONF_HPDCACHE_WAYS];
     svScope datScopes[DATA_ROWS][DATA_COLS];
+    svScope usrScopes[CONF_HPDCACHE_WAYS];
 
     static inline constexpr int getDir(int way) { return way; }
 
@@ -65,6 +76,9 @@ private:
                 x = getDatRow(way);
                 y = getDatCol(word);
                 ret = datScopes[x][y];
+                break;
+            case domain_e::CACHE_USR:
+                ret = usrScopes[way];
                 break;
             default:
                 break;
@@ -109,7 +123,46 @@ public:
             }
         }
 
+#if HPDCACHE_USER_EN
+        for (int w = 0; w < CONF_HPDCACHE_WAYS; w++) {
+            char hier_name[256];
+            snprintf(hier_name,
+                     256,
+                     "i_top.hpdcache_wrapper.i_hpdcache"
+                     ".hpdcache_ctrl_i.hpdcache_memctrl_i"
+                     ".gen_dir_sram[%d].gen_user_rentry_useren.user_sram"
+                     ".gen_sram_ecc.ram_i.i_sram",
+                     w);
+            svScope scope = svGetScopeFromName(hier_name);
+            assert(scope != nullptr);
+            usrScopes[w] = scope;
+        }
+#endif
+
         assert((HPDCACHE_WORD_WIDTH == 64) || (HPDCACHE_WORD_WIDTH == 32));
+#endif
+    }
+
+    //  Flip bits in the ECC codeword protecting the user bits of the given word of a cacheline.
+    //  The mask is relative to that codeword (bit 0 is the overall parity bit).
+    void injectUsrFault(int set, int way, int word, uint32_t mask, int cycles = 0)
+    {
+#if HPDCACHE_DPI_ON && HPDCACHE_USER_EN
+        static constexpr int CwBits = getUsrCodewordBits();
+        static constexpr int RowBits = CONF_HPDCACHE_CL_WORDS * CwBits;
+
+        svScope scope = getScope(domain_e::CACHE_USR, set, way);
+        svSetScope(scope);
+
+        svLogicVecVal lv[SV_PACKED_DATA_NELEMS(RowBits)];
+        memset(lv, 0, sizeof(svLogicVecVal) * SV_PACKED_DATA_NELEMS(RowBits));
+        for (int b = 0; b < CwBits; b++) {
+            if ((mask >> b) & 1) {
+                const int pos = word * CwBits + b;
+                lv[pos >> 5].aval |= (1u << (pos & 0x1f));
+            }
+        }
+        Vhpdcache_wrapper::publicSramWaSetMask(set, lv);
 #endif
     }
 

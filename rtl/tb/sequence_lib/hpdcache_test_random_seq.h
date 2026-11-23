@@ -14,6 +14,7 @@
 
 #include "hpdcache_test_defs.h"
 #include "hpdcache_test_sequence.h"
+#include <random>
 #include "scv.h"
 #include <systemc>
 
@@ -176,14 +177,30 @@ public:
         fault_inj_domain_dist.push(static_cast<int>(hpdcache_fault_injection::domain_e::CACHE_DIR),
                                    20);
 #endif
+#if !defined(CONF_HPDCACHE_TEST_FAULT_INJ_DAT) || CONF_HPDCACHE_TEST_FAULT_INJ_DAT
         fault_inj_domain_dist.push(static_cast<int>(hpdcache_fault_injection::domain_e::CACHE_DAT),
                                    80);
+#endif
+#if CONF_HPDCACHE_TEST_FAULT_INJ_USR && HPDCACHE_USER_EN
+        fault_inj_domain_dist.push(static_cast<int>(hpdcache_fault_injection::domain_e::CACHE_USR),
+                                   80);
+#endif
         fault_inj_domain_rnd->set_mode(fault_inj_domain_dist);
 
+        //  Bit positions of the faults injected in the user bits ECC codeword. Use a separate
+        //  generator so that the other random streams (and the faults injected in the other
+        //  SRAMs) do not change when user fault injection is enabled or disabled.
+        fault_inj_usr_bit_gen.seed(static_cast<uint32_t>(scv_random::get_global_seed()) ^ 0x5eedu);
+
         scv_bag<bool> fault_inj_double_dist;
+#if CONF_HPDCACHE_TEST_DOUBLE_FAULT_INJ && CONF_HPDCACHE_TEST_DOUBLE_FAULT_ONLY
+        //  only inject double faults
+        fault_inj_double_dist.push(true, 100);
+#else
         fault_inj_double_dist.push(false, 95);
 #if CONF_HPDCACHE_TEST_DOUBLE_FAULT_INJ
         fault_inj_double_dist.push(true, 5);
+#endif
 #endif
         fault_inj_double_rnd->set_mode(fault_inj_double_dist);
 
@@ -202,6 +219,7 @@ private:
     scv_smart_ptr<int> fault_inj_way_rnd;
     scv_smart_ptr<int> fault_inj_domain_rnd;
     scv_smart_ptr<bool> fault_inj_double_rnd;
+    std::minstd_rand fault_inj_usr_bit_gen;
 
     static constexpr unsigned int REQ_DATA_BYTES = HPDCACHE_REQ_DATA_WIDTH / 8;
     static constexpr unsigned int LOG2_REQ_DATA_BYTES = HPDCACHE_TEST_DEFS_LOG2(REQ_DATA_BYTES);
@@ -318,7 +336,18 @@ private:
             t->req_fault.word = t->get_cache_word();
             t->req_fault.domain =
                 static_cast<hpdcache_fault_injection::domain_e>(fault_inj_domain_rnd->read());
-            if (fault_inj_double_rnd->read()) {
+            if (t->req_fault.domain == hpdcache_fault_injection::domain_e::CACHE_USR) {
+                //  flip one (or two different) random bit(s) of the codeword protecting the
+                //  user bits of the accessed word
+                const unsigned cw = hpdcache_fault_injection::getUsrCodewordBits();
+                const unsigned b1 = fault_inj_usr_bit_gen() % cw;
+                uint32_t mask = 1u << b1;
+                if (fault_inj_double_rnd->read()) {
+                    const unsigned b2 = (b1 + 1 + (fault_inj_usr_bit_gen() % (cw - 1))) % cw;
+                    mask |= 1u << b2;
+                }
+                t->req_fault.fault_mask = mask;
+            } else if (fault_inj_double_rnd->read()) {
                 t->req_fault.fault_mask = 0xA0;
             } else {
                 t->req_fault.fault_mask = 0x20;

@@ -124,6 +124,8 @@ public:
         top->evt_cache_dir_cor_err_o(evt_cache_dir_cor_err);
         top->evt_cache_dat_unc_err_o(evt_cache_dat_unc_err);
         top->evt_cache_dat_cor_err_o(evt_cache_dat_cor_err);
+        top->evt_cache_usr_unc_err_o(evt_cache_usr_unc_err);
+        top->evt_cache_usr_cor_err_o(evt_cache_usr_cor_err);
         top->evt_scrub_complete_o(evt_scrub_complete);
         top->evt_uncached_req_o(evt_uncached_req);
         top->evt_cmo_req_o(evt_cmo_req);
@@ -218,6 +220,8 @@ public:
         hpdcache_test_scoreboard_i->evt_cache_dir_cor_err_i(evt_cache_dir_cor_err);
         hpdcache_test_scoreboard_i->evt_cache_dat_unc_err_i(evt_cache_dat_unc_err);
         hpdcache_test_scoreboard_i->evt_cache_dat_cor_err_i(evt_cache_dat_cor_err);
+        hpdcache_test_scoreboard_i->evt_cache_usr_unc_err_i(evt_cache_usr_unc_err);
+        hpdcache_test_scoreboard_i->evt_cache_usr_cor_err_i(evt_cache_usr_cor_err);
         hpdcache_test_scoreboard_i->evt_scrub_complete_i(evt_scrub_complete);
         hpdcache_test_scoreboard_i->evt_uncached_req_i(evt_uncached_req);
         hpdcache_test_scoreboard_i->evt_cmo_req_i(evt_cmo_req);
@@ -423,6 +427,8 @@ private:
     sc_core::sc_signal<bool> evt_cache_dir_cor_err;
     sc_core::sc_signal<bool> evt_cache_dat_unc_err;
     sc_core::sc_signal<bool> evt_cache_dat_cor_err;
+    sc_core::sc_signal<bool> evt_cache_usr_unc_err;
+    sc_core::sc_signal<bool> evt_cache_usr_cor_err;
     sc_core::sc_signal<bool> evt_scrub_complete;
     sc_core::sc_signal<bool> evt_uncached_req;
     sc_core::sc_signal<bool> evt_cmo_req;

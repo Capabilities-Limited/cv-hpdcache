@@ -58,6 +58,8 @@ public:
     sc_in<bool> evt_cache_dir_cor_err_i;
     sc_in<bool> evt_cache_dat_unc_err_i;
     sc_in<bool> evt_cache_dat_cor_err_i;
+    sc_in<bool> evt_cache_usr_unc_err_i;
+    sc_in<bool> evt_cache_usr_cor_err_i;
     sc_in<bool> evt_scrub_complete_i;
     sc_in<bool> evt_uncached_req_i;
     sc_in<bool> evt_cmo_req_i;
@@ -95,6 +97,8 @@ public:
       , evt_cache_dir_cor_err(0)
       , evt_cache_dat_unc_err(0)
       , evt_cache_dat_cor_err(0)
+      , evt_cache_usr_unc_err(0)
+      , evt_cache_usr_cor_err(0)
       , evt_scrub_complete(0)
       , evt_uncached_req(0)
       , evt_cmo_req(0)
@@ -186,6 +190,8 @@ public:
                << "CACHE.DIR_COR_ERRORS    : " << evt_cache_dir_cor_err << std::endl
                << "CACHE.DAT_UNC_ERRORS    : " << evt_cache_dat_unc_err << std::endl
                << "CACHE.DAT_COR_ERRORS    : " << evt_cache_dat_cor_err << std::endl
+               << "CACHE.USR_UNC_ERRORS    : " << evt_cache_usr_unc_err << std::endl
+               << "CACHE.USR_COR_ERRORS    : " << evt_cache_usr_cor_err << std::endl
                << "CACHE.SCRUBBER_COMPLETE : " << evt_scrub_complete << std::endl
                << "CACHE.UNCACHED_REQUESTS : " << evt_uncached_req << std::endl
                << "CACHE.CMO_REQUESTS      : " << evt_cmo_req << std::endl
@@ -241,6 +247,8 @@ private:
     uint64_t evt_cache_dir_cor_err;
     uint64_t evt_cache_dat_unc_err;
     uint64_t evt_cache_dat_cor_err;
+    uint64_t evt_cache_usr_unc_err;
+    uint64_t evt_cache_usr_cor_err;
     uint64_t evt_scrub_complete;
     uint64_t evt_uncached_req;
     uint64_t evt_cmo_req;
@@ -368,6 +376,8 @@ private:
         if (evt_cache_dir_cor_err_i.read()) evt_cache_dir_cor_err++;
         if (evt_cache_dat_unc_err_i.read()) evt_cache_dat_unc_err++;
         if (evt_cache_dat_cor_err_i.read()) evt_cache_dat_cor_err++;
+        if (evt_cache_usr_unc_err_i.read()) evt_cache_usr_unc_err++;
+        if (evt_cache_usr_cor_err_i.read()) evt_cache_usr_cor_err++;
         if (evt_scrub_complete_i.read()) evt_scrub_complete++;
         if (evt_uncached_req_i.read()) evt_uncached_req++;
         if (evt_cmo_req_i.read()) evt_cmo_req++;
