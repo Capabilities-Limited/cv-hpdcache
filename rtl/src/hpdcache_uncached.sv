@@ -741,7 +741,11 @@ import hpdcache_pkg::*;
     assign data_amo_write_way_o = req_hit_way_q;
 
     assign amo_write_data = prepare_amo_data_result(amo_result_data, req_size_q);
-    assign amo_write_user = req_is_cap ? amo_result_user : '0;
+    //  An LR does not modify memory: when it hits, the cached word is refreshed with the data
+    //  and the user bits (tag) loaded from memory. Other AMOs write the result of the
+    //  operation, whose user bits are cleared unless it is a capability AMO.
+    assign amo_write_user = req_op_q.is_amo_lr ? amo_req_ld_user :
+                            req_is_cap         ? amo_result_user : '0;
     if (HPDcacheCfg.reqDataWidth >= HPDcacheCfg.amoWidth) begin : gen_amo_ram_write_data_ge_amo_width
         assign data_amo_write_data = {HPDcacheCfg.reqDataWidth/HPDcacheCfg.amoWidth{amo_write_data}};
         assign data_amo_write_user_o = {HPDcacheCfg.reqDataWidth/HPDcacheCfg.amoWidth{amo_write_user}};
