@@ -163,5 +163,24 @@ module hpdcache_sram_wbyteenable_ecc_1rw
 `endif
     // }}}
 
+    //  Simulation-only fault injection (see hpdcache_sram_fault_inj.svh)
+    //  {{{
+`ifdef HPDCACHE_FAULT_INJ
+    localparam int unsigned FI_ENTRY_BITS = NDATA*WORD_BYTES*8;
+    localparam int unsigned FI_NCW = NDATA*NCHUNKS;
+    localparam int unsigned FI_CW_BITS = CHUNK_CW_WIDTH;
+
+    function automatic int unsigned fi_bit_pos(int unsigned cw, int unsigned c);
+        int unsigned j, k;
+        j = cw / NCHUNKS;
+        k = cw % NCHUNKS;
+        if (c < CHUNK_SIZE) return j*WORD_BYTES*8 + k*CHUNK_SIZE + c;
+        return j*WORD_BYTES*8 + DATA_SIZE + k*SYND_WIDTH + (c - CHUNK_SIZE);
+    endfunction
+
+`include "hpdcache_sram_fault_inj.svh"
+`endif
+    //  }}}
+
 endmodule
 // vim: ts=4 : sts=4 : sw=4 : et : tw=100 : spell : spelllang=en

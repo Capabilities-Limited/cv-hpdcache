@@ -198,5 +198,20 @@ module hpdcache_sram_watomenable_ecc_1rw
     assign _unused_err_inj = 1'b0 && (err_inj_i & |err_inj_msk_i);
     //  }}}
 
+    //  Simulation-only fault injection (see hpdcache_sram_fault_inj.svh)
+    //  {{{
+`ifdef HPDCACHE_FAULT_INJ
+    localparam int unsigned FI_ENTRY_BITS = NATOMS*CW_SIZE;
+    localparam int unsigned FI_NCW = NATOMS;
+    localparam int unsigned FI_CW_BITS = CW_SIZE;
+
+    function automatic int unsigned fi_bit_pos(int unsigned cw, int unsigned c);
+        return cw*CW_SIZE + c;
+    endfunction
+
+`include "hpdcache_sram_fault_inj.svh"
+`endif
+    //  }}}
+
 endmodule : hpdcache_sram_watomenable_ecc_1rw
 // vim: ts=4 : sts=4 : sw=4 : et : tw=100 : spell : spelllang=en
