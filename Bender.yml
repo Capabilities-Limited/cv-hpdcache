@@ -5,8 +5,18 @@ package:
 
 export_include_dirs:
   - rtl/include
+  - rtl/src/utils/ecc
 
 sources:
+  - rtl/src/utils/ecc/prim_secded_pkg.sv
+  - rtl/src/utils/ecc/prim_secded_36_29_dec.sv
+  - rtl/src/utils/ecc/prim_secded_36_29_enc.sv
+  - rtl/src/utils/ecc/prim_secded_39_32_dec.sv
+  - rtl/src/utils/ecc/prim_secded_39_32_enc.sv
+  - rtl/src/utils/ecc/prim_secded_55_48_dec.sv
+  - rtl/src/utils/ecc/prim_secded_55_48_enc.sv
+  - rtl/src/utils/ecc/prim_secded_72_64_dec.sv
+  - rtl/src/utils/ecc/prim_secded_72_64_enc.sv
   - rtl/src/common/macros/behav/hpdcache_sram_1rw.sv
   - rtl/src/common/macros/behav/hpdcache_sram_wbyteenable_1rw.sv
   - rtl/src/common/macros/behav/hpdcache_sram_wmask_1rw.sv
@@ -41,6 +51,10 @@ sources:
   - rtl/src/common/macros/behav/hpdcache_sram_wmask_1rw.sv
   - rtl/src/common/macros/behav/hpdcache_sram_wbyteenable_1rw.sv
   - rtl/src/common/macros/behav/hpdcache_sram_watomenable_1rw.sv
+  - rtl/src/common/macros/behav/hpdcache_sram_ecc_1rw.sv
+  - rtl/src/common/macros/behav/hpdcache_sram_wmask_ecc_1rw.sv
+  - rtl/src/common/macros/behav/hpdcache_sram_wbyteenable_ecc_1rw.sv
+  - rtl/src/common/macros/behav/hpdcache_sram_watomenable_ecc_1rw.sv
   - rtl/src/hwpf_stride/hwpf_stride_pkg.sv
   - rtl/src/hwpf_stride/hwpf_stride.sv
   - rtl/src/hwpf_stride/hwpf_stride_arb.sv
