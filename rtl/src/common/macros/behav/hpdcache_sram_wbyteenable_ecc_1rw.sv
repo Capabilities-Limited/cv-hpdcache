@@ -37,13 +37,24 @@ module hpdcache_sram_wbyteenable_ecc_1rw
     output logic [NDATA-1:0]                                        err_unc_o
 );
 
+    //  Data words of a width supported by the SECDED codes (29/32/48/64) are protected by a
+    //  single code. Wider words (multiple of 64 bits, e.g. 128-bit CHERI capabilities) are split
+    //  in 64-bit chunks, each protected by its own (72,64) code: a single-bit error per chunk is
+    //  corrected, and a double-bit error in a chunk is detected.
+    //
+    //  SRAM word layout: {chunk[NCHUNKS-1] check bits, ..., chunk[0] check bits, data}. With a
+    //  single chunk, this is the layout of the (DATA_SIZE + SYND_WIDTH, DATA_SIZE) codeword.
+    localparam bit          NATIVE_WIDTH = prim_secded_pkg::is_width_valid(
+        prim_secded_pkg::SecdedHsiao, DATA_SIZE);
+    localparam int unsigned CHUNK_SIZE = NATIVE_WIDTH ? DATA_SIZE : 64;
+    localparam int unsigned NCHUNKS = DATA_SIZE / CHUNK_SIZE;
     localparam int unsigned SYND_WIDTH = prim_secded_pkg::get_synd_width(
-        prim_secded_pkg::SecdedHsiao, DATA_SIZE);
-    localparam int unsigned WORD_WIDTH = prim_secded_pkg::get_full_width(
-        prim_secded_pkg::SecdedHsiao, DATA_SIZE);
+        prim_secded_pkg::SecdedHsiao, CHUNK_SIZE);
+    localparam int unsigned CHUNK_CW_WIDTH = CHUNK_SIZE + SYND_WIDTH;
+    localparam int unsigned WORD_WIDTH = DATA_SIZE + NCHUNKS*SYND_WIDTH;
     localparam int unsigned WORD_BYTES = (WORD_WIDTH + 7)/8;
 
-    //  Width of the encoder's input data is not necessarily a multiple of 8
+    //  Width of the encoded data is not necessarily a multiple of 8
     logic [NDATA-1:0][WORD_WIDTH-1:0] wdata_enc_ecc;
 
     //  Width of the SRAM's data is a multiple of 8 bits
@@ -51,8 +62,8 @@ module hpdcache_sram_wbyteenable_ecc_1rw
     logic [NDATA-1:0][WORD_BYTES*8-1:0] rdata_sram;
     logic [NDATA-1:0][WORD_BYTES-1:0] wbyte_sram;
 
-    logic [NDATA-1:0][SYND_WIDTH-1:0] syndr_ecc;
-    logic [NDATA-1:0][1:0] err;
+    logic [NDATA-1:0][NCHUNKS-1:0][SYND_WIDTH-1:0] syndr_ecc;
+    logic [NDATA-1:0][NCHUNKS-1:0] err_cor, err_unc;
 
     hpdcache_sram_wbyteenable_1rw #(
         .ADDR_SIZE (ADDR_SIZE),
@@ -77,33 +88,55 @@ module hpdcache_sram_wbyteenable_ecc_1rw
             if (j < DATA_SIZE/8) begin : gen_ecc_data_wbyteenable
                 //  Data bits are written according to the byte-enable signal
                 assign wbyte_sram[i][j] = wbyteenable[i][j];
-            end else begin : gen_ecc_check_wbyteenable
+            end else if (NCHUNKS == 1) begin : gen_ecc_check_wbyteenable
                 //  Check bits byte are written if the last byte of the word is modified
                 //  When using ECC, all the bytes of word need to be written to correctly compute
                 //  the check bits. Hence, we can arbitrarily take a byte-enable for the check bits
                 assign wbyte_sram[i][j] = wbyteenable[i][(DATA_SIZE/8) - 1];
+            end else begin : gen_ecc_chunk_check_wbyteenable
+                //  With 64-bit chunks, each check bits byte belongs to one chunk: it is written
+                //  if the last byte of that chunk is modified
+                assign wbyte_sram[i][j] =
+                    wbyteenable[i][(j - DATA_SIZE/8 + 1)*(CHUNK_SIZE/8) - 1];
             end
         end
 
-        `SECDED_INST_ENC(prim_secded_pkg::SecdedHsiao,
-            DATA_SIZE,
-            ecc_enc,
-            wdata[i],
-            wdata_enc_ecc[i])
+        for (genvar k = 0; k < NCHUNKS; k++) begin : gen_ecc_chunk
+            logic [CHUNK_CW_WIDTH-1:0] chunk_enc, chunk_rd;
+
+            `SECDED_INST_ENC(prim_secded_pkg::SecdedHsiao,
+                CHUNK_SIZE,
+                ecc_enc,
+                wdata[i][k*CHUNK_SIZE +: CHUNK_SIZE],
+                chunk_enc)
+
+            assign wdata_enc_ecc[i][k*CHUNK_SIZE +: CHUNK_SIZE] = chunk_enc[CHUNK_SIZE-1:0];
+            assign wdata_enc_ecc[i][DATA_SIZE + k*SYND_WIDTH +: SYND_WIDTH] =
+                chunk_enc[CHUNK_CW_WIDTH-1:CHUNK_SIZE];
+
+            assign chunk_rd = {rdata_sram[i][DATA_SIZE + k*SYND_WIDTH +: SYND_WIDTH],
+                               rdata_sram[i][k*CHUNK_SIZE +: CHUNK_SIZE]};
+
+            logic [1:0] chunk_err;
+
+            `SECDED_INST_DEC(prim_secded_pkg::SecdedHsiao,
+                CHUNK_SIZE,
+                ecc_dec,
+                chunk_rd,
+                rdata[i][k*CHUNK_SIZE +: CHUNK_SIZE],
+                syndr_ecc[i][k],
+                chunk_err)
+
+            assign err_cor[i][k] = chunk_err[0];
+            assign err_unc[i][k] = chunk_err[1];
+        end
 
         //  Complete MSbs with zeros if the data + checks bits is not a multiple of byte
-        assign wdata_sram[i] = wdata_enc_ecc[i];
+        assign wdata_sram[i] = (WORD_BYTES*8)'(wdata_enc_ecc[i]);
 
-        `SECDED_INST_DEC(prim_secded_pkg::SecdedHsiao,
-            DATA_SIZE,
-            ecc_dec,
-            rdata_sram[i][WORD_WIDTH-1:0],
-            rdata[i],
-            syndr_ecc[i],
-            err[i])
-
-        assign err_cor_o[i] = err[i][0];
-        assign err_unc_o[i] = err[i][1];
+        //  An uncorrectable error in any chunk makes the whole word uncorrectable
+        assign err_unc_o[i] = |err_unc[i];
+        assign err_cor_o[i] = |err_cor[i] & ~err_unc_o[i];
 
 `ifndef HPDCACHE_ASSERT_OFF
         byteenable_all_set_assert: assert property (@(posedge clk) disable iff (rst_n !== 1'b1)
@@ -115,9 +148,9 @@ module hpdcache_sram_wbyteenable_ecc_1rw
     //  Assertions
     //  {{{
 `ifndef HPDCACHE_ASSERT_OFF
-    if (!prim_secded_pkg::is_width_valid(prim_secded_pkg::SecdedHsiao, DATA_SIZE))
-    begin : gen_ecc_valid_width_assertion
-        $fatal(1, $sformatf("Unsupported DATA_SIZE = %0d", DATA_SIZE));
+    if (!NATIVE_WIDTH && ((DATA_SIZE % 64) != 0)) begin : gen_ecc_valid_width_assertion
+        $fatal(1, $sformatf("Unsupported DATA_SIZE = %0d (29/32/48/64 or a multiple of 64)",
+            DATA_SIZE));
     end
 
     if ((DATA_SIZE % 8) != 0) begin : gen_data_width_assertion
