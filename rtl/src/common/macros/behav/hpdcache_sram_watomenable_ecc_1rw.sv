@@ -43,109 +43,15 @@ module hpdcache_sram_watomenable_ecc_1rw
     output logic [NATOMS-1:0]            err_unc_o
 );
 
-    //  Definition of constants
+    //  SECDED code of each atom (see hpdcache_secded_hamming.svh)
     //  {{{
-    //      Number of Hamming check bits: smallest R such that 2**R >= ATOM_SIZE + R + 1
-    function automatic int unsigned get_hamming_bits(int unsigned k);
-        int unsigned r;
-        r = 1;
-        while ((1 << r) < (k + r + 1)) r++;
-        return r;
-    endfunction
+    localparam int unsigned HAM_K = ATOM_SIZE;
+`include "hpdcache_secded_hamming.svh"
 
-    localparam int unsigned K = ATOM_SIZE;
-    localparam int unsigned R = get_hamming_bits(K);
-    localparam int unsigned N = K + R;
-    localparam int unsigned CW_SIZE = N + 1;
+    localparam int unsigned CW_SIZE = HAM_CW_SIZE;
     localparam int unsigned PAD_SIZE = NATOMS*ATOM_SIZE;
 
-    typedef logic [K-1:0]       atom_t;
-    typedef logic [CW_SIZE-1:0] codeword_t;
-    //  }}}
-
-    //  SECDED encoder/decoder
-    //  {{{
-    function automatic codeword_t secded_encode(atom_t d);
-        codeword_t c;
-        int unsigned di;
-        logic par;
-
-        c = '0;
-        di = 0;
-        for (int unsigned pos = 1; pos <= N; pos++) begin
-            if ((pos & (pos - 1)) != 0) begin
-                c[pos] = d[di];
-                di++;
-            end
-        end
-        for (int unsigned j = 0; j < R; j++) begin
-            par = 1'b0;
-            for (int unsigned pos = 1; pos <= N; pos++) begin
-                if ((((pos >> j) & 1) != 0) && (pos != (1 << j))) begin
-                    par ^= c[pos];
-                end
-            end
-            c[1 << j] = par;
-        end
-        c[0] = ^c[N:1];
-        return c;
-    endfunction
-
-    function automatic atom_t secded_extract(codeword_t c);
-        atom_t d;
-        int unsigned di;
-
-        d = '0;
-        di = 0;
-        for (int unsigned pos = 1; pos <= N; pos++) begin
-            if ((pos & (pos - 1)) != 0) begin
-                d[di] = c[pos];
-                di++;
-            end
-        end
-        return d;
-    endfunction
-
-    //  Returns the corrected codeword. cor is set when a single error was corrected, unc when
-    //  an uncorrectable (double) error was detected.
-    function automatic codeword_t secded_correct(codeword_t c, output logic cor,
-                                                 output logic unc);
-        int unsigned synd;
-        logic b, par;
-        codeword_t ret;
-
-        synd = 0;
-        for (int unsigned j = 0; j < R; j++) begin
-            b = 1'b0;
-            for (int unsigned pos = 1; pos <= N; pos++) begin
-                if (((pos >> j) & 1) != 0) b ^= c[pos];
-            end
-            if (b) synd |= (1 << j);
-        end
-        par = ^c;
-
-        ret = c;
-        cor = 1'b0;
-        unc = 1'b0;
-        if (par) begin
-            //  odd number of flipped bits: assume a single error
-            if (synd == 0) begin
-                //  error in the overall parity bit
-                ret[0] = ~ret[0];
-                cor = 1'b1;
-            end else if (synd <= N) begin
-                ret[synd] = ~ret[synd];
-                cor = 1'b1;
-            end else begin
-                //  syndrome points outside of the codeword
-                unc = 1'b1;
-            end
-        end else if (synd != 0) begin
-            //  even number of flipped bits (and not zero): double error
-            unc = 1'b1;
-        end
-        return ret;
-    endfunction
+    typedef ham_cw_t codeword_t;
     //  }}}
 
     //  Memory array
@@ -178,14 +84,14 @@ module hpdcache_sram_watomenable_ecc_1rw
         codeword_t rcw_corrected;
         logic      cor, unc;
 
-        assign wdata_sram[i] = secded_encode(wdata_pad[i*ATOM_SIZE +: ATOM_SIZE]);
+        assign wdata_sram[i] = ham_encode(wdata_pad[i*ATOM_SIZE +: ATOM_SIZE]);
 
         always_comb
         begin : atom_decode_comb
-            rcw_corrected = secded_correct(rdata_sram[i], cor, unc);
+            rcw_corrected = ham_correct(rdata_sram[i], cor, unc);
         end
 
-        assign rdata_pad[i*ATOM_SIZE +: ATOM_SIZE] = secded_extract(rcw_corrected);
+        assign rdata_pad[i*ATOM_SIZE +: ATOM_SIZE] = ham_extract(rcw_corrected);
         assign err_cor_o[i] = cor;
         assign err_unc_o[i] = unc;
     end

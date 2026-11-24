@@ -7,7 +7,9 @@
 /*
  *  Authors       : Cesar Fuguet
  *  Creation Date : December, 2025
- *  Description   : SRAM behavioral model with ECC
+ *  Description   : SRAM behavioral model with ECC. Data widths with a Hsiao code in
+ *                  prim_secded (29, 32, 48, 64) use it; other widths use a generic extended
+ *                  Hamming SECDED code (see hpdcache_secded_hamming.svh).
  *  History       :
  */
 `include "prim_secded_inc.svh"
@@ -33,10 +35,17 @@ module hpdcache_sram_ecc_1rw
     output logic [NDATA-1:0]                err_cor_o,
     output logic [NDATA-1:0]                err_unc_o
 );
-    localparam int unsigned SYND_WIDTH = prim_secded_pkg::get_synd_width(
+    localparam bit          NATIVE_WIDTH = prim_secded_pkg::is_width_valid(
         prim_secded_pkg::SecdedHsiao, DATA_SIZE);
-    localparam int unsigned WORD_WIDTH = prim_secded_pkg::get_full_width(
-        prim_secded_pkg::SecdedHsiao, DATA_SIZE);
+
+    //  Generic SECDED code, for widths without a Hsiao code
+    localparam int unsigned HAM_K = DATA_SIZE;
+`include "hpdcache_secded_hamming.svh"
+
+    localparam int unsigned SYND_WIDTH = NATIVE_WIDTH ? prim_secded_pkg::get_synd_width(
+        prim_secded_pkg::SecdedHsiao, DATA_SIZE) : HAM_R + 1;
+    localparam int unsigned WORD_WIDTH = NATIVE_WIDTH ? prim_secded_pkg::get_full_width(
+        prim_secded_pkg::SecdedHsiao, DATA_SIZE) : HAM_CW_SIZE;
 
     logic [NDATA-1:0][WORD_WIDTH-1:0] wdata_ecc, rdata_ecc;
     logic [NDATA-1:0][SYND_WIDTH-1:0] syndr_ecc;
@@ -58,33 +67,39 @@ module hpdcache_sram_ecc_1rw
     );
 
     for (genvar i = 0; i < NDATA; i++) begin : gen_ecc_enc_dec
-        `SECDED_INST_ENC(prim_secded_pkg::SecdedHsiao,
-            DATA_SIZE,
-            ecc_enc,
-            wdata[i],
-            wdata_ecc[i])
+        if (NATIVE_WIDTH) begin : gen_hsiao
+            `SECDED_INST_ENC(prim_secded_pkg::SecdedHsiao,
+                DATA_SIZE,
+                ecc_enc,
+                wdata[i],
+                wdata_ecc[i])
 
-        `SECDED_INST_DEC(prim_secded_pkg::SecdedHsiao,
-            DATA_SIZE,
-            ecc_dec,
-            rdata_ecc[i],
-            rdata[i],
-            syndr_ecc[i],
-            err[i])
+            `SECDED_INST_DEC(prim_secded_pkg::SecdedHsiao,
+                DATA_SIZE,
+                ecc_dec,
+                rdata_ecc[i],
+                rdata[i],
+                syndr_ecc[i],
+                err[i])
+        end else begin : gen_hamming
+            ham_cw_t rcw_corrected;
+            logic    cor, unc;
+
+            assign wdata_ecc[i] = ham_encode(wdata[i]);
+
+            always_comb
+            begin : ham_decode_comb
+                rcw_corrected = ham_correct(rdata_ecc[i], cor, unc);
+            end
+
+            assign rdata[i] = ham_extract(rcw_corrected);
+            assign syndr_ecc[i] = '0;
+            assign err[i] = {unc, cor};
+        end
 
         assign err_cor_o[i] = err[i][0];
         assign err_unc_o[i] = err[i][1];
     end
-
-    //  Assertions
-    //  {{{
-`ifndef HPDCACHE_ASSERT_OFF
-    if (!prim_secded_pkg::is_width_valid(prim_secded_pkg::SecdedHsiao, DATA_SIZE))
-    begin : gen_ecc_valid_width_assertion
-        $fatal(1, $sformatf("Unsupported DATA_SIZE = %0d", DATA_SIZE));
-    end
-`endif
-    //  }}}
 
     //  Simulation-only fault injection (see hpdcache_sram_fault_inj.svh)
     //  {{{
