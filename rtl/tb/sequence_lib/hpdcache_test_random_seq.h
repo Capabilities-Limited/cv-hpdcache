@@ -191,6 +191,7 @@ public:
         //  generator so that the other random streams (and the faults injected in the other
         //  SRAMs) do not change when user fault injection is enabled or disabled.
         fault_inj_usr_bit_gen.seed(static_cast<uint32_t>(scv_random::get_global_seed()) ^ 0x5eedu);
+        fault_inj_dat_bit_gen.seed(static_cast<uint32_t>(scv_random::get_global_seed()) ^ 0xda7au);
 
         scv_bag<bool> fault_inj_double_dist;
 #if CONF_HPDCACHE_TEST_DOUBLE_FAULT_INJ && CONF_HPDCACHE_TEST_DOUBLE_FAULT_ONLY
@@ -220,6 +221,7 @@ private:
     scv_smart_ptr<int> fault_inj_domain_rnd;
     scv_smart_ptr<bool> fault_inj_double_rnd;
     std::minstd_rand fault_inj_usr_bit_gen;
+    std::minstd_rand fault_inj_dat_bit_gen;
 
     static constexpr unsigned int REQ_DATA_BYTES = HPDCACHE_REQ_DATA_WIDTH / 8;
     static constexpr unsigned int LOG2_REQ_DATA_BYTES = HPDCACHE_TEST_DEFS_LOG2(REQ_DATA_BYTES);
@@ -345,6 +347,21 @@ private:
                 if (fault_inj_double_rnd->read()) {
                     const unsigned b2 = (b1 + 1 + (fault_inj_usr_bit_gen() % (cw - 1))) % cw;
                     mask |= 1u << b2;
+                }
+                t->req_fault.fault_mask = mask;
+            } else if ((t->req_fault.domain == hpdcache_fault_injection::domain_e::CACHE_DAT) &&
+                       (hpdcache_fault_injection::getDatChunks() > 1)) {
+                //  words wider than 64 bits have one codeword per 64-bit chunk: flip one (or two
+                //  different) random bit(s) of the codeword of a random chunk, so that double
+                //  faults remain detectable (uncorrectable)
+                const unsigned cw = hpdcache_fault_injection::getDatChunkCodewordBits();
+                const unsigned k = fault_inj_dat_bit_gen() % hpdcache_fault_injection::getDatChunks();
+                const unsigned b1 = fault_inj_dat_bit_gen() % cw;
+                sc_bv<hpdcache_fault_injection::MASK_BITS> mask = 0;
+                mask[hpdcache_fault_injection::getDatChunkBitPos(k, b1)] = 1;
+                if (fault_inj_double_rnd->read()) {
+                    const unsigned b2 = (b1 + 1 + (fault_inj_dat_bit_gen() % (cw - 1))) % cw;
+                    mask[hpdcache_fault_injection::getDatChunkBitPos(k, b2)] = 1;
                 }
                 t->req_fault.fault_mask = mask;
             } else if (fault_inj_double_rnd->read()) {

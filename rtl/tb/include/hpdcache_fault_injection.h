@@ -39,6 +39,42 @@ public:
         return HPDCACHE_USER_WORD_WIDTH + r + 1;
     }
 
+    //  Maximum width of the fault masks (in bits)
+    static constexpr int MASK_BITS = 256;
+
+    //  Number of check bits of a SECDED code protecting the given number of data bits
+    static inline constexpr int getParBits(int wordWidth)
+    {
+        if (wordWidth < 64) return 7;
+        return 8;
+    }
+
+    //  Data words wider than 64 bits are protected by one SECDED code per 64-bit chunk (see
+    //  hpdcache_sram_wbyteenable_ecc_1rw.sv). SRAM word layout:
+    //  {chunk[n-1] check bits, ..., chunk[0] check bits, data}
+    static constexpr int getDatChunkBits()
+    {
+        return (CONF_HPDCACHE_WORD_WIDTH > 64) ? 64 : CONF_HPDCACHE_WORD_WIDTH;
+    }
+    static constexpr int getDatChunks() { return CONF_HPDCACHE_WORD_WIDTH / getDatChunkBits(); }
+    static constexpr int getDatChunkCodewordBits()
+    {
+        return getDatChunkBits() + getParBits(getDatChunkBits());
+    }
+    static constexpr int getDatCodewordBits()
+    {
+        return CONF_HPDCACHE_WORD_WIDTH + getDatChunks() * getParBits(getDatChunkBits());
+    }
+
+    //  Position in the SRAM word of bit c of the codeword of the given chunk
+    static constexpr int getDatChunkBitPos(int chunk, int c)
+    {
+        return (c < getDatChunkBits())
+                 ? chunk * getDatChunkBits() + c
+                 : CONF_HPDCACHE_WORD_WIDTH + chunk * getParBits(getDatChunkBits()) +
+                     (c - getDatChunkBits());
+    }
+
 private:
     static constexpr int DATA_ROWS = CONF_HPDCACHE_WAYS / CONF_HPDCACHE_DATA_WAYS_PER_RAM_WORD;
     static constexpr int DATA_COLS = CONF_HPDCACHE_ACCESS_WORDS;
@@ -55,12 +91,6 @@ private:
     }
 
     static inline constexpr int getDatCol(int word) { return word % CONF_HPDCACHE_ACCESS_WORDS; }
-
-    static inline constexpr int getParBits(int wordWidth)
-    {
-        if (wordWidth < 64) return 7;
-        return 8;
-    }
 
     svScope getScope(domain_e domain, int set, int way, int word = 0)
     {
@@ -139,7 +169,8 @@ public:
         }
 #endif
 
-        assert((HPDCACHE_WORD_WIDTH == 64) || (HPDCACHE_WORD_WIDTH == 32));
+        //  words wider than 64 bits are protected by one code per 64-bit chunk
+        assert((HPDCACHE_WORD_WIDTH == 32) || ((HPDCACHE_WORD_WIDTH % 64) == 0));
 #endif
     }
 
@@ -193,11 +224,11 @@ public:
 #endif
     }
 
-    void injectDatFault(int set, int way, int word, sc_bv<72> mask, int cycles = 0)
+    void injectDatFault(int set, int way, int word, sc_bv<MASK_BITS> mask, int cycles = 0)
     {
 #if HPDCACHE_DPI_ON
-        static constexpr int ParBits = getParBits(CONF_HPDCACHE_WORD_WIDTH);
-        static constexpr int WordBits = CONF_HPDCACHE_WORD_WIDTH + ParBits;
+        static constexpr int WordBits = getDatCodewordBits();
+        static_assert(WordBits <= MASK_BITS, "data codeword wider than the fault mask");
         static constexpr int RamBits = WordBits * CONF_HPDCACHE_DATA_WAYS_PER_RAM_WORD;
 
         svScope scope = getScope(domain_e::CACHE_DAT, set, way, word);

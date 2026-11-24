@@ -264,8 +264,11 @@ private:
     std::shared_ptr<hpdcache_test_mem_resp_model_base> mem_resp_model;
 
     // static constexpr unsigned int CORE_REQ_WORDS = HPDCACHE_REQ_WORDS;
-    static constexpr unsigned int CORE_REQ_WORDS = HPDCACHE_REQ_DATA_WIDTH / HPDCACHE_WORD_WIDTH;
-    static constexpr unsigned int CORE_REQ_WORD_BYTES = (HPDCACHE_WORD_WIDTH + 8 - 1) / 8;
+    //  The scoreboard models request data as 64-bit (at most) words. Cache words wider than 64
+    //  bits (e.g. 128-bit CHERI capabilities) are modelled as several 64-bit words.
+    static constexpr unsigned int SB_WORD_WIDTH = (HPDCACHE_WORD_WIDTH > 64) ? 64 : HPDCACHE_WORD_WIDTH;
+    static constexpr unsigned int CORE_REQ_WORDS = HPDCACHE_REQ_DATA_WIDTH / SB_WORD_WIDTH;
+    static constexpr unsigned int CORE_REQ_WORD_BYTES = (SB_WORD_WIDTH + 8 - 1) / 8;
     static constexpr unsigned int CORE_REQ_BYTES = CORE_REQ_WORDS * CORE_REQ_WORD_BYTES;
 
     struct inflight_entry_t
@@ -515,7 +518,7 @@ private:
                 for (int i = 0; i < CORE_REQ_WORDS; i++) {
                     e.wdata[i] =
                         req.req_wdata
-                            .range((i + 1) * HPDCACHE_WORD_WIDTH - 1, i * HPDCACHE_WORD_WIDTH)
+                            .range((i + 1) * SB_WORD_WIDTH - 1, i * SB_WORD_WIDTH)
                             .to_uint64();
                     e.be[i] =
                         req.req_be.range((i + 1) * CORE_REQ_WORD_BYTES - 1, i * CORE_REQ_WORD_BYTES)
@@ -714,8 +717,8 @@ private:
                 bool sc_ok;
                 if (e.is_amo_sc) {
                     uint64_t sc_resp = resp.rsp_rdata
-                                           .range((_word + 1) * HPDCACHE_WORD_WIDTH - 1,
-                                                  _word * HPDCACHE_WORD_WIDTH)
+                                           .range((_word + 1) * SB_WORD_WIDTH - 1,
+                                                  _word * SB_WORD_WIDTH)
                                            .to_uint64();
                     if (e.bytes == 4) {
                         sc_resp = (uint32_t)sc_resp;
@@ -743,7 +746,7 @@ private:
                     for (int i = 0; i < CORE_REQ_WORDS; i++) {
                         rdata[i] =
                             resp.rsp_rdata
-                                .range((i + 1) * HPDCACHE_WORD_WIDTH - 1, i * HPDCACHE_WORD_WIDTH)
+                                .range((i + 1) * SB_WORD_WIDTH - 1, i * SB_WORD_WIDTH)
                                 .to_uint64();
                     }
 
@@ -771,10 +774,11 @@ private:
                     //  check the received user bits
                     //  {{{
                     if (hpdcache_test_user::enabled() && (e.is_read || e.is_amo_lr)) {
-                        const int first_word = _byte / CORE_REQ_WORD_BYTES;
-                        const int last_word = (_byte + e.bytes - 1) / CORE_REQ_WORD_BYTES;
+                        const unsigned wb = hpdcache_test_user::WORD_BYTES;
+                        const int first_word = _byte / wb;
+                        const int last_word = (_byte + e.bytes - 1) / wb;
                         for (int i = first_word; i <= last_word; i++) {
-                            const uint64_t word_addr = aligned_addr + i * CORE_REQ_WORD_BYTES;
+                            const uint64_t word_addr = aligned_addr + i * wb;
                             if (hpdcache_test_user::is_tainted(word_addr)) continue;
                             const int lo = i * HPDCACHE_USER_WORD_WIDTH;
                             const uint32_t recv =
@@ -1070,10 +1074,13 @@ private:
                 const unsigned wb = hpdcache_test_user::WORD_BYTES;
                 for (size_t f = 0; f < req.flits.size(); f++) {
                     const uint64_t flit_base = align_to(req.flit_addr(f), flit_bytes);
+                    //  a word wider than a flit is sent in several flits, each flit carrying the
+                    //  user bits of the word
+                    const uint64_t span = (wb < flit_bytes) ? wb : flit_bytes;
                     for (int k = 0; k < HPDCACHE_MEM_USER_WORDS; k++) {
-                        const uint64_t word_addr = flit_base + k * wb;
-                        if ((k + 1) * wb > flit_bytes) break;
-                        if (req.flits[f].be.range((k + 1) * wb - 1, k * wb).to_uint64() == 0)
+                        const uint64_t word_addr = flit_base + k * span;
+                        if ((k + 1) * span > flit_bytes) break;
+                        if (req.flits[f].be.range((k + 1) * span - 1, k * span).to_uint64() == 0)
                             continue;
                         if (hpdcache_test_user::is_tainted(word_addr)) continue;
                         const int lo = k * HPDCACHE_USER_WORD_WIDTH;

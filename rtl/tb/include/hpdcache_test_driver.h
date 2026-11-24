@@ -167,7 +167,7 @@ private:
                         faultInj.injectDatFault(t->req_fault.set,
                                                 t->req_fault.way,
                                                 t->req_fault.word,
-                                                t->req_fault.fault_mask.range(71, 0));
+                                                t->req_fault.fault_mask);
                         break;
                     case hpdcache_fault_injection::domain_e::CACHE_USR:
                         faultInj.injectUsrFault(t->req_fault.set,

@@ -67,7 +67,7 @@ public:
         int way;
         int word;
         hpdcache_fault_injection::domain_e domain;
-        sc_bv<128> fault_mask;
+        sc_bv<hpdcache_fault_injection::MASK_BITS> fault_mask;
 
         hpdcache_fault_injection_req()
         {
@@ -320,7 +320,8 @@ public:
                 os << " / CACHE_DIR";
             }
             if (req_fault.domain == hpdcache_fault_injection::domain_e::CACHE_DAT) {
-                os << " / CACHE_DAT";
+                os << " / CACHE_DAT / WORD = " << req_fault.word
+                   << " / MASK = " << req_fault.fault_mask.to_string(SC_HEX);
             }
             if (req_fault.domain == hpdcache_fault_injection::domain_e::CACHE_USR) {
                 os << " / CACHE_USR / WORD = " << req_fault.word << " / MASK = 0x" << std::hex
