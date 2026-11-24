@@ -968,9 +968,13 @@ import hpdcache_pkg::*;
 
             localparam int unsigned BE_WIDTH = HPDcacheCfg.reqDataWidth / ((HPDcacheCfg.u.wordWidth > 8) ? 8 : HPDcacheCfg.u.wordWidth);
 
-            //  replicate data
+            //  replicate data and user bits (the byte-enable selects the written words)
             assign mem_req_write_data_o.mem_req_w_data = {MEM_REQ_RATIO{mem_req_write_data}};
-            assign mem_req_write_data_o.mem_req_w_user = mem_req_write_user;
+            if (HPDcacheCfg.u.userEn) begin : gen_upsize_mem_req_user
+                assign mem_req_write_data_o.mem_req_w_user = {MEM_REQ_RATIO{mem_req_write_user}};
+            end else begin : gen_upsize_mem_req_user_default
+                assign mem_req_write_data_o.mem_req_w_user = '0;
+            end
 
             //  demultiplex the byte-enable
             hpdcache_demux #(
@@ -1039,7 +1043,7 @@ import hpdcache_pkg::*;
             if (HPDcacheCfg.u.userEn) begin : gen_rsp_ruser_userEn
                 hpdcache_mux #(
                     .NINPUT      (MEM_REQ_RATIO),
-                    .DATA_WIDTH  (HPDcacheCfg.reqWords * HPDcacheCfg.reqWordUserWidth)
+                    .DATA_WIDTH  (HPDcacheCfg.u.reqWords * HPDcacheCfg.u.wordUserWidth)
                 ) user_read_rsp_mux_i(
                     .data_i      (mem_resp_read_i.mem_resp_r_user),
                     .sel_i       (req_addr_q[$clog2(HPDcacheCfg.reqDataWidth/((HPDcacheCfg.u.wordWidth > 8) ? 8 : HPDcacheCfg.u.wordWidth)) +:
