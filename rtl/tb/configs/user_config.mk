@@ -9,7 +9,8 @@
 #  Date       : October, 2024
 #  Description: HPDCACHE test configuration with user bits (e.g. CHERI tags) enabled.
 #               Same shape as the CVA6 CHERI configuration (one data word per access, memory
-#               interface as wide as a word, one user bit per word) but with 64-bit words.
+#               interface as wide as a word, one user bit per word) but with 64-bit words (see
+#               cheri_config.mk for 128-bit words).
 ##
 CONF_HPDCACHE_PA_WIDTH=56
 CONF_HPDCACHE_WORD_WIDTH=64
