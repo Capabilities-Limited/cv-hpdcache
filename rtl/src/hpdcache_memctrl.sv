@@ -392,6 +392,7 @@ import hpdcache_pkg::*;
     hpdcache_data_be_entry_t                   data_wbyteenable;
     hpdcache_data_entry_t                      data_wentry;
     hpdcache_data_entry_t                      data_rentry;
+    hpdcache_data_entry_t                      data_rentry_ram;
 
     logic                                      data_write;
     logic                                      data_write_enable;
@@ -557,12 +558,30 @@ import hpdcache_pkg::*;
                     .addr          (data_addr[y][x]),
                     .wdata         (data_wentry[y][x]),
                     .wbyteenable   (data_wbyteenable[y][x]),
-                    .rdata         (data_rentry[y][x]),
+                    .rdata         (data_rentry_ram[y][x]),
                     .err_inj_i     (1'b0),
                     .err_inj_msk_i ('0),
                     .err_cor_o     (data_ecc_cor[y][x]),
                     .err_unc_o     (data_ecc_unc[y][x])
                 );
+            end
+        end
+
+        //  Fail-safe policy for uncorrectable errors in the data: as for the user bits, data
+        //  words that cannot be corrected are read as zeros. Their corrupted contents are never
+        //  returned or written back to memory (e.g. on an eviction), which matters when the data
+        //  are themselves tags (CHERI tag controller): a memory error can never create a tag.
+        always_comb
+        begin : data_rentry_failsafe_comb
+            data_rentry = data_rentry_ram;
+            if (HPDcacheCfg.u.eccEn) begin
+                for (int ry = 0; ry < int'(HPDCACHE_DATA_RAM_Y_CUTS); ry++) begin
+                    for (int rx = 0; rx < int'(HPDCACHE_DATA_RAM_X_CUTS); rx++) begin
+                        for (int rw = 0; rw < int'(HPDcacheCfg.u.dataWaysPerRamWord); rw++) begin
+                            if (data_ecc_unc[ry][rx][rw]) data_rentry[ry][rx][rw] = '0;
+                        end
+                    end
+                end
             end
         end
 
