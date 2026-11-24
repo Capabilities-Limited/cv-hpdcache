@@ -1710,13 +1710,22 @@ import hpdcache_pkg::*;
     //  Control of the response to the core
     //  {{{
     if (HPDcacheCfg.u.lowLatency) begin : gen_st2_core_rsp_comb
+        logic st1_ecc_err;
+
+        //  An aborted request is responded without handling the ECC errors of its access. Its
+        //  response is then not a hit, so that the requester does not use its data, and retries
+        //  the request if needed (the retried request handles the errors: correction, refetch of
+        //  the cacheline, or error response).
+        assign st1_ecc_err = HPDcacheCfg.u.eccEn &&
+                             (|{st1_dir_err_cor, st1_dir_err_unc, st1_dat_err_cor, st1_dat_err_unc});
+
         //  When lowLatency, all responses to the core are sent on stage 1
         assign core_rsp_valid = st1_rsp_valid;
         assign core_rsp_aborted = st1_rsp_aborted;
         assign core_rsp_error = st1_rsp_error;
         assign core_rsp_hit = st1_rsp_valid && st1_req_is_load &&
                               !st1_req_is_uncacheable && st1_dir_hit &&
-                              !st1_rsp_error;
+                              !st1_rsp_error && !st1_ecc_err;
         assign core_rsp_sid = st1_req.req.sid;
         assign core_rsp_tid = st1_req.req.tid;
     end else begin : gen_st2_core_rsp_ff
