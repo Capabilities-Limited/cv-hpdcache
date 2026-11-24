@@ -885,13 +885,20 @@ import hpdcache_pkg::*;
     //  Data RAM request multiplexor
     //  {{{
     if (HPDcacheCfg.u.eccEn) begin : gen_data_req_write_ecc
+        //  Merge at the granularity of the byte-enable: bytes, or whole words for words narrower
+        //  than a byte (e.g. the 1-bit words of the CHERI tag controller caches)
+        localparam int unsigned MergeAtom = (HPDcacheCfg.u.wordWidth >= 8) ? 8 :
+                                            HPDcacheCfg.u.wordWidth;
+
         always_comb
         begin : data_req_write_data_merge_comb
             for (int i = 0; i < HPDcacheCfg.u.reqWords; i++) begin
-                for (int j = 0; j < HPDcacheCfg.u.wordWidth/8; j++) begin
-                    data_req_write_data_merged[i][j*8 +: 8] =
-                            (data_req_read_data_o[i][j*8 +: 8]  & {8{~data_req_write_be_i[i][j]}}) |
-                            (data_req_write_data_i[i][j*8 +: 8] & {8{ data_req_write_be_i[i][j]}});
+                for (int j = 0; j < HPDcacheCfg.u.wordWidth/MergeAtom; j++) begin
+                    data_req_write_data_merged[i][j*MergeAtom +: MergeAtom] =
+                        (data_req_read_data_o[i][j*MergeAtom +: MergeAtom] &
+                         {MergeAtom{~data_req_write_be_i[i][j]}}) |
+                        (data_req_write_data_i[i][j*MergeAtom +: MergeAtom] &
+                         {MergeAtom{ data_req_write_be_i[i][j]}});
 
                     data_req_write_be_merged[i][j] = data_req_write_be_i[i][j] |
                                                      data_req_write_merge_i;

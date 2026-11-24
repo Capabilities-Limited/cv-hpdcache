@@ -789,15 +789,22 @@ import hpdcache_pkg::*;
     end
 
     if (HPDcacheCfg.u.eccEn) begin : gen_data_req_write_ecc
+        //  Merge at the granularity of the byte-enable: bytes, or whole words for words narrower
+        //  than a byte
+        localparam int unsigned MergeAtom = (HPDcacheCfg.u.wordWidth >= 8) ? 8 :
+                                            HPDcacheCfg.u.wordWidth;
+
         assign data_amo_write_merge = (hpdcache_uint'(req_size_q) < HPDcacheCfg.wordByteIdxWidth);
         always_comb
         begin : data_amo_write_merge_comb
             for (int i = 0; i < HPDcacheCfg.u.reqWords; i++) begin
-                for (int j = 0; j < HPDcacheCfg.u.wordWidth/8; j++) begin
+                for (int j = 0; j < HPDcacheCfg.u.wordWidth/MergeAtom; j++) begin
                     data_amo_write_be_o[i][j] = req_be_q[i][j] | data_amo_write_merge;
-                    data_amo_write_data_o[i][j*8 +: 8] =
-                        (     req_old_data_q[i][j*8 +: 8] & {8{~req_be_q[i][j]}}) |
-                        (data_amo_write_data[i][j*8 +: 8] & {8{ req_be_q[i][j]}});
+                    data_amo_write_data_o[i][j*MergeAtom +: MergeAtom] =
+                        (     req_old_data_q[i][j*MergeAtom +: MergeAtom] &
+                         {MergeAtom{~req_be_q[i][j]}}) |
+                        (data_amo_write_data[i][j*MergeAtom +: MergeAtom] &
+                         {MergeAtom{ req_be_q[i][j]}});
                 end
             end
         end
