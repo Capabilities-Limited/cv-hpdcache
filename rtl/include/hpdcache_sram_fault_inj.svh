@@ -12,6 +12,10 @@
  *                                         each ECC SRAM (0, the default, disables injection)
  *                  +hpdcache_fi_double=1  flip two bits of the same codeword (detected,
  *                                         uncorrectable error) instead of one (corrected error)
+ *                  +hpdcache_fi_scope=S   only inject faults in the SRAMs whose hierarchical name
+ *                                         contains S (e.g. icache)
+ *                  +hpdcache_fi_log       print each fault injected, and each read that returned
+ *                                         an error
  *                  +hpdcache_fi_report    print, for each SRAM, the number of faults injected and
  *                                         the number of reads that returned a corrected or an
  *                                         uncorrectable error (cumulative counts, printed when a
@@ -41,11 +45,22 @@
     logic        fi_rst_q = 1'b0;
     int unsigned fi_reported = 0;
     bit          fi_report = 1'b0;
+    bit          fi_log = 1'b0;
+    string       fi_scope;
 
     initial begin : fi_plusargs
         void'($value$plusargs("hpdcache_fi_rate=%d", fi_rate));
         void'($value$plusargs("hpdcache_fi_double=%d", fi_double));
         fi_report = $test$plusargs("hpdcache_fi_report");
+        fi_log = $test$plusargs("hpdcache_fi_log");
+        if ($value$plusargs("hpdcache_fi_scope=%s", fi_scope) && (fi_rate != 0)) begin
+            automatic string path = $sformatf("%m");
+            automatic bit    found = 1'b0;
+            for (int i = 0; i + fi_scope.len() <= path.len(); i++) begin
+                if (path.substr(i, i + fi_scope.len() - 1) == fi_scope) found = 1'b1;
+            end
+            if (!found) fi_rate = 0;
+        end
     end
 
     always @(posedge clk) begin : fi_inject
@@ -64,6 +79,7 @@
             end
             i_sram.mem[fi_idx] <= i_sram.mem[fi_idx] ^ fi_mask;
             fi_count++;
+            if (fi_log) $display("[%0t] %m: fault at entry %0d mask %h", $time, fi_idx, fi_mask);
         end
     end
 
@@ -72,6 +88,8 @@
         if (fi_rd_q) begin
             if (|err_unc_o) fi_rd_unc++;
             else if (|err_cor_o) fi_rd_cor++;
+            if (fi_log && (|err_unc_o || |err_cor_o))
+                $display("[%0t] %m: read with %s error", $time, (|err_unc_o) ? "uncorrectable" : "corrected");
         end
         fi_rd_q <= (rst_n === 1'b1) && cs && !we;
     end
