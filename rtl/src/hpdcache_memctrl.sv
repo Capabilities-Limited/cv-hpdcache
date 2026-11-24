@@ -1342,10 +1342,13 @@ import hpdcache_pkg::*;
     //  Assertions
     //  {{{
 `ifndef HPDCACHE_ASSERT_OFF
+    //  The directory state read with an uncorrectable ECC error is meaningless (the error is
+    //  handled by the controller), so it is not checked
     for (gen_i = 0; gen_i < HPDcacheCfg.u.ways; gen_i++) begin : gen_check_dirty_state
         check_dirty_state: assert property (@(posedge clk_i)
                 disable iff ((rst_ni !== 1'b1) || (init_q !== 1'b1))
-                (dir_cs[gen_i] & ~dir_we[gen_i]) |=> (dir_dirty[gen_i] |-> dir_valid[gen_i])) else
+                (dir_cs[gen_i] & ~dir_we[gen_i]) |=>
+                    (dir_err_unc_o[gen_i] || !dir_dirty[gen_i] || dir_valid[gen_i])) else
                 $error("hpdcache_memctrl: wrong directory state - dirty but not valid");
     end
 
