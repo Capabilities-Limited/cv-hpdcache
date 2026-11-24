@@ -661,7 +661,25 @@ import hpdcache_pkg::*;
             .data_o         (amo_req_ld_data)
         );
 
-        if (HPDcacheCfg.u.userEn) begin : gen_amo_req_ld_user_userEn
+        //  User bits are per cache word. When a word is at least as wide as an AMO word, the
+        //  AMO word lies within one cache word: take the user bits of that word.
+        if (HPDcacheCfg.u.userEn && (HPDcacheCfg.u.wordWidth >= HPDcacheCfg.amoWidth))
+        begin : gen_amo_req_ld_user_word
+            if (HPDcacheCfg.u.reqWords > 1) begin : gen_amo_req_ld_user_word_mux
+                hpdcache_mux #(
+                    .NINPUT         (HPDcacheCfg.u.reqWords),
+                    .DATA_WIDTH     (1),
+                    .ONE_HOT_SEL    (1'b0)
+                ) amo_ld_user_mux_i (
+                    .data_i         (rsp_ruser_q),
+                    .sel_i          (req_addr_q[HPDcacheCfg.wordByteIdxWidth +:
+                                                $clog2(HPDcacheCfg.u.reqWords)]),
+                    .data_o         (amo_req_ld_user)
+                );
+            end else begin : gen_amo_req_ld_user_word_single
+                assign amo_req_ld_user = rsp_ruser_q;
+            end
+        end else if (HPDcacheCfg.u.userEn) begin : gen_amo_req_ld_user_userEn
             hpdcache_mux #(
                 .NINPUT         (HPDcacheCfg.reqDataWidth/HPDcacheCfg.amoWidth),
                 .DATA_WIDTH     (1),
@@ -685,7 +703,23 @@ import hpdcache_pkg::*;
             .data_o         (amo_req_st_data)
         );
 
-        if (HPDcacheCfg.u.userEn) begin : gen_amo_req_st_user_userEn
+        if (HPDcacheCfg.u.userEn && (HPDcacheCfg.u.wordWidth >= HPDcacheCfg.amoWidth))
+        begin : gen_amo_req_st_user_word
+            if (HPDcacheCfg.u.reqWords > 1) begin : gen_amo_req_st_user_word_mux
+                hpdcache_mux #(
+                    .NINPUT         (HPDcacheCfg.u.reqWords),
+                    .DATA_WIDTH     (1),
+                    .ONE_HOT_SEL    (1'b0)
+                ) amo_st_user_mux_i (
+                    .data_i         (req_user_q),
+                    .sel_i          (req_addr_q[HPDcacheCfg.wordByteIdxWidth +:
+                                                $clog2(HPDcacheCfg.u.reqWords)]),
+                    .data_o         (amo_req_st_user)
+                );
+            end else begin : gen_amo_req_st_user_word_single
+                assign amo_req_st_user = req_user_q;
+            end
+        end else if (HPDcacheCfg.u.userEn) begin : gen_amo_req_st_user_userEn
             hpdcache_mux #(
                 .NINPUT         (HPDcacheCfg.reqDataWidth/HPDcacheCfg.amoWidth),
                 .DATA_WIDTH     (1),
