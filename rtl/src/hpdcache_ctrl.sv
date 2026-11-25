@@ -426,6 +426,7 @@ import hpdcache_pkg::*;
     hpdcache_way_vector_t    st1_dir_err_dirty;
     hpdcache_way_vector_t    st1_dat_err_cor;
     hpdcache_way_vector_t    st1_dat_err_unc;
+    hpdcache_way_vector_t    st1_dat_err_cor_raw, st1_dat_err_unc_raw;
     hpdcache_way_vector_t    st1_dat_err_unc_dirty;
     logic                    st1_err_trigger;
     logic                    err_busy;
@@ -608,6 +609,13 @@ import hpdcache_pkg::*;
 
     //  Cache controller protocol engine
     //  {{{
+    //  Data errors only matter in valid cachelines (or when the directory entry cannot be
+    //  trusted): the data of an invalid way is never used, and it is entirely rewritten by the
+    //  refill that makes the way valid. Ignoring them avoids correcting stale data, e.g. on every
+    //  partial write (read-modify-write) that reads the row of all the ways of a set.
+    assign st1_dat_err_cor = st1_dat_err_cor_raw & (st1_dir_err_valid | st1_dir_err_unc);
+    assign st1_dat_err_unc = st1_dat_err_unc_raw & (st1_dir_err_valid | st1_dir_err_unc);
+
     assign st1_dat_err_unc_dirty = st1_dir_err_valid & st1_dir_err_dirty & st1_dat_err_unc;
 
     hpdcache_ctrl_pe #(
@@ -1158,8 +1166,8 @@ import hpdcache_pkg::*;
         .data_refill_data_i            (refill_data_i),
         .data_refill_user_i            (refill_user_i),
 
-        .data_err_cor_o                (st1_dat_err_cor),
-        .data_err_unc_o                (st1_dat_err_unc),
+        .data_err_cor_o                (st1_dat_err_cor_raw),
+        .data_err_unc_o                (st1_dat_err_unc_raw),
         .data_err_set_i                (err_set_q),
         .data_err_way_i                (err_way_q),
         .data_err_word_i               (err_dat_word_q),
