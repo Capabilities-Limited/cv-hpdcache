@@ -1438,7 +1438,26 @@ import hpdcache_pkg::*;
             .sel_i       (data_flush_read_way_i),
             .data_o      (data_flush_read_user_cl)
         );
-        assign data_flush_read_user_o = access_user_from_cl_user(data_flush_read_user_cl, data_flush_read_word_q);
+        //  Fail-safe policy for write-backs: the user bits (e.g. CHERI capability tags) of a data
+        //  word that cannot be corrected are cleared with the word (which is read as zeros), so
+        //  that a write-back of a line with an uncorrectable error never writes a valid tag
+        always_comb
+        begin : data_flush_read_user_comb
+            data_flush_read_user_o = access_user_from_cl_user(data_flush_read_user_cl,
+                                                              data_flush_read_word_q);
+            if (HPDcacheCfg.u.eccEn) begin
+                for (int way = 0; way < int'(HPDcacheCfg.u.ways); way++) begin
+                    if (data_flush_read_way_i[way]) begin
+                        for (int x = 0; x < int'(HPDcacheCfg.u.accessWords); x++) begin
+                            if (data_ecc_unc[way / HPDcacheCfg.u.dataWaysPerRamWord][x]
+                                            [way % HPDcacheCfg.u.dataWaysPerRamWord]) begin
+                                data_flush_read_user_o[x] = '0;
+                            end
+                        end
+                    end
+                end
+            end
+        end
     end else begin : gen_data_flush_read_user_o_default
         assign data_flush_read_user_cl = '0;
         assign data_flush_read_user_o = '0;

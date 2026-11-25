@@ -332,6 +332,8 @@ import hpdcache_pkg::*;
     hpdcache_dir_entry_t     err_dir_wdata;
 
     logic                    err_dat_read, err_dat_write;
+    logic                    err_flush_alloc;
+    hpdcache_nline_t         err_flush_alloc_nline;
     hpdcache_access_data_t   err_dat_rdata_q, err_dat_rdata_d;
     hpdcache_word_t          err_dat_word_q;
     hpdcache_access_data_t   err_dat_wdata;
@@ -1262,7 +1264,10 @@ import hpdcache_pkg::*;
         ERR_WAIT_MSHR,
         ERR_INVAL,
         ERR_LATCH,
-        ERR_CORRECT
+        ERR_CORRECT,
+        ERR_WB_LATCH,
+        ERR_WB_ALLOC,
+        ERR_WB_WAIT
     } hpdcache_err_fsm_t;
 
     if (HPDcacheCfg.u.eccEn) begin : gen_err_recovery
@@ -1271,6 +1276,7 @@ import hpdcache_pkg::*;
         hpdcache_way_vector_t err_dir_cor_q;
         hpdcache_way_vector_t err_dat_unc_q;
         hpdcache_way_vector_t err_dat_cor_q;
+        hpdcache_way_vector_t err_dirty_q;
         hpdcache_way_vector_t err_way_next;
 
         logic err_dir_rdata_we;
@@ -1286,6 +1292,7 @@ import hpdcache_pkg::*;
         begin : err_fsm_comb
             automatic logic err_dir_unc_msk, err_dir_cor_msk;
             automatic logic err_dat_unc_msk, err_dat_cor_msk;
+            automatic logic err_dirty_msk;
             automatic logic err_unc;
 
             err_fsm_d = err_fsm_q;
@@ -1296,6 +1303,7 @@ import hpdcache_pkg::*;
             err_dir_cor_msk = |(err_dir_cor_q & err_way_q);
             err_dat_unc_msk = |(err_dat_unc_q & err_way_q);
             err_dat_cor_msk = |(err_dat_cor_q & err_way_q);
+            err_dirty_msk   = |(err_dirty_q & err_way_q);
 
             err_dir_read  = 1'b0;
             err_dir_write = 1'b0;
@@ -1304,6 +1312,8 @@ import hpdcache_pkg::*;
             err_dat_write = 1'b0;
             err_dat_wdata = '0;
             err_usr_wdata = '0;
+
+            err_flush_alloc = 1'b0;
 
             err_dir_rdata_we = 1'b0;
             err_dat_rdata_we = 1'b0;
@@ -1322,7 +1332,18 @@ import hpdcache_pkg::*;
                     end
                 end
                 ERR_CHECK: begin
-                    if (err_dir_unc_msk | err_dat_unc_msk) begin
+                    //  An uncorrectable error in the data of a dirty cacheline whose directory
+                    //  entry is correct: write back the cacheline before invalidating it.
+                    //  Otherwise the older copy of the cacheline in memory would reappear
+                    //  (e.g. CHERI capability tags that the lost writes had cleared). The
+                    //  words that cannot be corrected are written back as zeros, with their
+                    //  user bits (capability tags) cleared.
+                    if (HPDcacheCfg.u.wbEn && err_dat_unc_msk && !err_dir_unc_msk &&
+                        err_dirty_msk)
+                    begin
+                        err_dir_read = 1'b1;
+                        err_fsm_d = ERR_WB_LATCH;
+                    end else if (err_dir_unc_msk | err_dat_unc_msk) begin
                         err_fsm_d = ERR_INVAL;
                     end else if (err_dir_cor_msk | err_dat_cor_msk) begin
                         err_dir_read = err_dir_cor_msk;
@@ -1360,6 +1381,27 @@ import hpdcache_pkg::*;
                     end else begin
                         err_way_d = err_way_next;
                         err_fsm_d = ERR_CHECK;
+                    end
+                end
+                ERR_WB_LATCH: begin
+                    //  Latch the (corrected) directory entry: tag of the cacheline
+                    err_dir_rdata_we = 1'b1;
+                    err_fsm_d = ERR_WB_ALLOC;
+                end
+                ERR_WB_ALLOC: begin
+                    //  Write back the cacheline through the flush controller, when neither the
+                    //  pipeline (stage 2) nor the CMO handler is allocating a flush
+                    err_flush_alloc = ~st2_flush_alloc_q & ~cmo_busy_i;
+                    if (err_flush_alloc && flush_alloc_ready_i) begin
+                        err_fsm_d = ERR_WB_WAIT;
+                    end
+                end
+                ERR_WB_WAIT: begin
+                    //  Wait for the flush controller to read the whole cacheline, then
+                    //  invalidate it. Later requests to the cacheline wait for the write
+                    //  acknowledgement (flush check), so the older copy is never refetched.
+                    if (!flush_busy_i) begin
+                        err_fsm_d = ERR_INVAL;
                     end
                 end
                 ERR_LATCH: begin
@@ -1400,6 +1442,7 @@ import hpdcache_pkg::*;
                 err_dir_cor_q  <= '0;
                 err_dat_unc_q  <= '0;
                 err_dat_cor_q  <= '0;
+                err_dirty_q    <= '0;
                 err_dat_word_q <= '0;
             end else begin
                 err_fsm_q      <= err_fsm_d;
@@ -1411,6 +1454,7 @@ import hpdcache_pkg::*;
                     err_dir_cor_q <= st1_dir_err_cor;
                     err_dat_unc_q <= st1_dat_err_unc;
                     err_dat_cor_q <= st1_dat_err_cor;
+                    err_dirty_q   <= st1_dir_err_valid & st1_dir_err_dirty;
 
                     //  Align request word to the number of access words
                     //  The error recovery handler checks and corrects "access words" per cycle
@@ -1420,6 +1464,9 @@ import hpdcache_pkg::*;
                 end
             end
         end
+
+        //  Cacheline written back by the error recovery handler
+        assign err_flush_alloc_nline = {err_dir_rdata_q.tag, err_set_q};
 
         always_ff @(posedge clk_i)
         begin : err_fsm_data_ff
@@ -1444,6 +1491,8 @@ import hpdcache_pkg::*;
         assign err_usr_wdata  = '0;
         assign err_busy       = 1'b0;
         assign err_wait       = 1'b0;
+        assign err_flush_alloc = 1'b0;
+        assign err_flush_alloc_nline = '0;
     end
     //  }}}
 
@@ -1710,9 +1759,12 @@ import hpdcache_pkg::*;
     //  Flush controller outputs
     //  {{{
     assign flush_check_nline_o = st1_req_nline;
-    assign flush_alloc_o       = st2_flush_alloc_q;
-    assign flush_alloc_nline_o = st2_flush_alloc_nline_q;
-    assign flush_alloc_way_o   = st2_flush_alloc_way_q;
+    //  The error recovery handler writes back a dirty cacheline with an uncorrectable error (it
+    //  only allocates a flush when there is no stage 2 flush request)
+    assign flush_alloc_o       = st2_flush_alloc_q | err_flush_alloc;
+    assign flush_alloc_nline_o = st2_flush_alloc_q ? st2_flush_alloc_nline_q :
+                                                     err_flush_alloc_nline;
+    assign flush_alloc_way_o   = st2_flush_alloc_q ? st2_flush_alloc_way_q : err_way_q;
     //  }}}
 
     //  Control of the response to the core
