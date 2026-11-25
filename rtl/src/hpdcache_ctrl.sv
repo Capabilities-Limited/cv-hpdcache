@@ -529,7 +529,7 @@ import hpdcache_pkg::*;
     assign st0_req_is_cmo_flush    = is_cmo_flush(st0_req.req.op);
     assign st0_req_is_cmo_prefetch = is_cmo_prefetch(st0_req.req.op);
 
-    assign st0_req_is_partial = (hpdcache_uint'(st0_req.req.size) < HPDcacheCfg.wordByteIdxWidth);
+    assign st0_req_is_partial = (hpdcache_uint'(st0_req.req.size) < HPDcacheCfg.eccWriteSizeWidth);
     //  }}}
 
     //  Decode operation in stage 1
@@ -598,7 +598,7 @@ import hpdcache_pkg::*;
     assign st1_req_is_cmo_fence             = is_cmo_fence(st1_req.req.op);
     assign st1_req_is_cmo_prefetch          = is_cmo_prefetch(st1_req.req.op);
 
-    assign st1_req_is_partial = (hpdcache_uint'(st1_req.req.size) < HPDcacheCfg.wordByteIdxWidth);
+    assign st1_req_is_partial = (hpdcache_uint'(st1_req.req.size) < HPDcacheCfg.eccWriteSizeWidth);
 
     //  Decode write-policy hint
     assign st1_req_wr_wt   = (st1_req.req.pma.wr_policy_hint == HPDCACHE_WR_POLICY_WT);

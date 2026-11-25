@@ -402,6 +402,7 @@ import hpdcache_pkg::*;
     hpdcache_access_data_t                     data_write_data;
     hpdcache_access_be_t                       data_write_be;
     hpdcache_req_data_t                        data_req_write_data_merged;
+    hpdcache_access_data_t                     data_req_write_row_old;
     hpdcache_req_be_t                          data_req_write_be_merged;
 
     logic                                      data_read;
@@ -542,28 +543,97 @@ import hpdcache_pkg::*;
 
         //  Data
         //
-        for (y = 0; y < int'(HPDCACHE_DATA_RAM_Y_CUTS); y++) begin : gen_data_sram_row
-            for (x = 0; x < int'(HPDCACHE_DATA_RAM_X_CUTS); x++) begin : gen_data_sram_col
+
+        if (!HPDcacheCfg.dataRamRowEcc) begin : gen_data_sram_words
+            //  One SRAM per word of the access row
+            for (y = 0; y < int'(HPDCACHE_DATA_RAM_Y_CUTS); y++) begin : gen_data_sram_row
+                for (x = 0; x < int'(HPDCACHE_DATA_RAM_X_CUTS); x++)
+                begin : gen_data_sram_col
+                    hpdcache_sram_wbyteenable #(
+                        .ADDR_SIZE (HPDCACHE_DATA_RAM_ADDR_WIDTH),
+                        .DATA_SIZE (HPDcacheCfg.u.wordWidth),
+                        .ATOM_SIZE (HPDcacheCfg.u.wordWidth >= 8 ? 8 : HPDcacheCfg.u.wordWidth),
+                        .NDATA     (HPDcacheCfg.u.dataWaysPerRamWord),
+                        .ECC_EN    (HPDcacheCfg.u.eccEn)
+                    ) data_sram(
+                        .clk           (clk_i),
+                        .rst_n         (rst_ni),
+                        .cs            (data_cs[y][x]),
+                        .we            (data_we[y][x]),
+                        .addr          (data_addr[y][x]),
+                        .wdata         (data_wentry[y][x]),
+                        .wbyteenable   (data_wbyteenable[y][x]),
+                        .rdata         (data_rentry_ram[y][x]),
+                        .err_inj_i     (1'b0),
+                        .err_inj_msk_i ('0),
+                        .err_cor_o     (data_ecc_cor[y][x]),
+                        .err_unc_o     (data_ecc_unc[y][x])
+                    );
+                end
+            end
+        end else begin : gen_data_sram_rows_ecc
+            //  With ECC and words narrower than a byte (dataRamRowEcc), the words of an access row
+            //  are packed in a single SRAM word protected by a single SECDED code, instead of one
+            //  codeword per word (e.g. 72 bits instead of 256 for a row of 64 1-bit words). Row is
+            //  always written as a whole: a write of some words of the row is a read-modify-write
+            //  (the row is read by the partial store in stage 0, and merged in stage 1). Error is
+            //  reported for all the words of the row.
+            for (y = 0; y < int'(HPDCACHE_DATA_RAM_Y_CUTS); y++)
+            begin : gen_data_sram_row_ecc
+                localparam int unsigned RowWidth = HPDcacheCfg.accessWidth;
+                localparam int unsigned DataWays = HPDcacheCfg.u.dataWaysPerRamWord;
+
+                logic [DataWays-1:0][RowWidth-1:0]   row_wdata, row_rdata;
+                logic [DataWays-1:0][RowWidth/8-1:0] row_wbyteenable;
+                logic [DataWays-1:0]                 row_cor, row_unc;
+
+                always_comb
+                begin : row_pack_comb
+                    for (int w = 0; w < int'(DataWays); w++) begin
+                        automatic logic be = 1'b0;
+                        for (int c = 0; c < int'(HPDCACHE_DATA_RAM_X_CUTS); c++) begin
+                            row_wdata[w][c*HPDcacheCfg.u.wordWidth +: HPDcacheCfg.u.wordWidth] =
+                                data_wentry[y][c][w];
+                            be |= |data_wbyteenable[y][c][w];
+                        end
+                        row_wbyteenable[w] = {RowWidth/8{be}};
+                    end
+                end
+
+                //  All the cuts of the row are accessed together (rd_wr_conflict_o prevents a read
+                //  and a write of different words in the same cycle)
                 hpdcache_sram_wbyteenable #(
                     .ADDR_SIZE (HPDCACHE_DATA_RAM_ADDR_WIDTH),
-                    .DATA_SIZE (HPDcacheCfg.u.wordWidth),
-                    .ATOM_SIZE (HPDcacheCfg.u.wordWidth >= 8 ? 8 : HPDcacheCfg.u.wordWidth),
-                    .NDATA     (HPDcacheCfg.u.dataWaysPerRamWord),
-                    .ECC_EN    (HPDcacheCfg.u.eccEn)
+                    .DATA_SIZE (RowWidth),
+                    .ATOM_SIZE (8),
+                    .NDATA     (DataWays),
+                    .ECC_EN    (1'b1)
                 ) data_sram(
                     .clk           (clk_i),
                     .rst_n         (rst_ni),
-                    .cs            (data_cs[y][x]),
-                    .we            (data_we[y][x]),
-                    .addr          (data_addr[y][x]),
-                    .wdata         (data_wentry[y][x]),
-                    .wbyteenable   (data_wbyteenable[y][x]),
-                    .rdata         (data_rentry_ram[y][x]),
+                    .cs            (|data_cs[y]),
+                    .we            (|data_we[y]),
+                    .addr          (data_addr[y][0]),
+                    .wdata         (row_wdata),
+                    .wbyteenable   (row_wbyteenable),
+                    .rdata         (row_rdata),
                     .err_inj_i     (1'b0),
                     .err_inj_msk_i ('0),
-                    .err_cor_o     (data_ecc_cor[y][x]),
-                    .err_unc_o     (data_ecc_unc[y][x])
+                    .err_cor_o     (row_cor),
+                    .err_unc_o     (row_unc)
                 );
+
+                always_comb
+                begin : row_unpack_comb
+                    for (int c = 0; c < int'(HPDCACHE_DATA_RAM_X_CUTS); c++) begin
+                        for (int w = 0; w < int'(DataWays); w++) begin
+                            data_rentry_ram[y][c][w] =
+                                row_rdata[w][c*HPDcacheCfg.u.wordWidth +: HPDcacheCfg.u.wordWidth];
+                            data_ecc_cor[y][c][w] = row_cor[w];
+                            data_ecc_unc[y][c][w] = row_unc[w];
+                        end
+                    end
+                end
             end
         end
 
@@ -884,7 +954,7 @@ import hpdcache_pkg::*;
 
     //  Data RAM request multiplexor
     //  {{{
-    if (HPDcacheCfg.u.eccEn) begin : gen_data_req_write_ecc
+    if (HPDcacheCfg.u.eccEn && !HPDcacheCfg.dataRamRowEcc) begin : gen_data_req_write_ecc
         //  Merge at the granularity of the byte-enable: bytes, or whole words for words narrower
         //  than a byte (e.g. the 1-bit words of the CHERI tag controller caches)
         localparam int unsigned MergeAtom = (HPDcacheCfg.u.wordWidth >= 8) ? 8 :
@@ -906,6 +976,8 @@ import hpdcache_pkg::*;
             end
         end
     end else begin : gen_data_req_write_noecc
+        //  With row ECC (dataRamRowEcc), the merge is done on the whole access row (see
+        //  data_write_comb)
         assign data_req_write_data_merged = data_req_write_data_i;
         assign data_req_write_be_merged   = data_req_write_be_i;
     end
@@ -988,6 +1060,16 @@ import hpdcache_pkg::*;
                 data_write_word   = data_req_write_word_i;
                 data_write_data   = data_req_write_data;
                 data_write_be     = data_req_write_be;
+
+                //  Row ECC: merge the written words into the row read by the partial store
+                if (HPDcacheCfg.dataRamRowEcc && data_req_write_merge_i) begin
+                    data_write_size = hpdcache_req_size_t'($clog2(HPDcacheCfg.accessWidth/8));
+                    for (int unsigned j = 0; j < HPDcacheCfg.u.accessWords; j++) begin
+                        data_write_data[j] = data_req_write_be[j][0] ? data_req_write_data[j] :
+                                                                       data_req_write_row_old[j];
+                    end
+                    data_write_be = '1;
+                end
 
                 if (HPDcacheCfg.u.userEn) begin
                     user_watomenable  = {HPDcacheCfg.u.ways{user_enable_from_byte_enable(data_req_write_be, data_req_write_word_i)}};
@@ -1096,7 +1178,10 @@ import hpdcache_pkg::*;
     assign word_sel_req_wr =
         hpdcache_compute_data_ram_cs(data_req_write_size_i, data_req_write_word_i);
 
-    assign rd_wr_conflict_o = |(word_sel_req_rd & word_sel_req_wr);
+    //  With row ECC, all the words of a row are in the same SRAM
+    assign rd_wr_conflict_o = HPDcacheCfg.dataRamRowEcc ?
+                              (|word_sel_req_rd & |word_sel_req_wr) :
+                              |(word_sel_req_rd & word_sel_req_wr);
 
     always_comb
     begin : data_ctrl_comb
@@ -1114,7 +1199,10 @@ import hpdcache_pkg::*;
             data_cs[i] = __word_sel_rd | __word_sel_wr;
             data_we[i] = data_write_enable ? __word_sel_wr : '0;
             for (int unsigned j = 0; j < HPDCACHE_DATA_RAM_X_CUTS; j++) begin
-                data_addr[i][j] = data_write && word_sel_wr[j] ? __data_wr_addr : __data_rd_addr;
+                //  With row ECC, the cuts of a row are a single SRAM: a write uses the write
+                //  address for all of them
+                data_addr[i][j] = data_write && (word_sel_wr[j] || HPDcacheCfg.dataRamRowEcc) ?
+                                  __data_wr_addr : __data_rd_addr;
             end
         end
         if (HPDcacheCfg.u.userEn) begin
@@ -1224,6 +1312,29 @@ import hpdcache_pkg::*;
         .data_o      (data_req_read_data_o)
     );
 
+
+    //  Row read by a partial store (row ECC): the words of the written way
+    always_comb
+    begin : data_req_write_row_old_comb
+        data_req_write_row_old = '0;
+        for (int unsigned way = 0; way < HPDcacheCfg.u.ways; way++) begin
+            if (data_req_write_way_i[way]) begin
+                for (int unsigned j = 0; j < HPDcacheCfg.u.accessWords; j++) begin
+                    data_req_write_row_old[j] =
+                        data_rentry[way / HPDcacheCfg.u.dataWaysPerRamWord][j]
+                                   [way % HPDcacheCfg.u.dataWaysPerRamWord];
+                end
+            end
+        end
+    end
+
+`ifndef HPDCACHE_ASSERT_OFF
+    if (HPDcacheCfg.dataRamRowEcc) begin : gen_row_ecc_assert
+        row_ecc_amo_assert: assert property (@(posedge clk_i) disable iff (rst_ni !== 1'b1)
+            !data_amo_write_i) else
+            $error("AMOs are not supported with row ECC (ECC and words narrower than a byte)");
+    end
+`endif
 
     //  Delay the accessed set for checking the tag from the directory in the
     //  next cycle (hit logic)

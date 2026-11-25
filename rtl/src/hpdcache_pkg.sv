@@ -485,6 +485,8 @@ package hpdcache_pkg;
         int unsigned accessBytes;
         int unsigned wordsPerMemFlit;
         int unsigned amoWidth;
+        bit          dataRamRowEcc;
+        int unsigned eccWriteSizeWidth;
     } hpdcache_cfg_t;
 
     function automatic hpdcache_cfg_t hpdcacheBuildConfig(input hpdcache_user_cfg_t p);
@@ -520,6 +522,15 @@ package hpdcache_pkg;
         ret.wordsPerMemFlit = hpdcache_ceil_div(p.memDataWidth, p.wordWidth);
 
         ret.amoWidth = p.capAmoEn ? 128 : 64;
+        //  With ECC, words narrower than a byte (e.g. the 1-bit words of the CHERI tag controller
+        //  caches) are packed in a single SRAM word per access row, protected by a single SECDED
+        //  code
+        ret.dataRamRowEcc = p.eccEn && (p.wordWidth < 8) && (ret.accessWidth >= 8) &&
+                            ((ret.accessWidth % 8) == 0);
+        //  Requests whose size is below this (log2 of bytes) are partial writes of an ECC codeword
+        //  (with ECC, they are read-modify-writes)
+        ret.eccWriteSizeWidth = ret.dataRamRowEcc ? $clog2(ret.accessWidth / 8) :
+                                                    ret.wordByteIdxWidth;
 
         return ret;
     endfunction
