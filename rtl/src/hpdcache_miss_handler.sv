@@ -158,6 +158,18 @@ import hpdcache_pkg::*;
                                                       HPDcacheCfg.u.accessWords;
     localparam hpdcache_uint ACCESS_MEM_RATIO = hpdcache_ceil_div(HPDcacheCfg.accessWidth, HPDcacheCfg.u.memDataWidth);
 
+    //  Streaming refills: write each chunk of a refill into the cache as soon as it arrives,
+    //  rather than once the whole cacheline is buffered. The refill holds the cache pipeline from
+    //  its first chunk to its last, so this is only done in read-only caches (no write-through nor
+    //  write-back): their pipeline has no dirty data to evict for memory to make progress.
+    localparam bit REFILL_STREAM = !HPDcacheCfg.u.wtEn && !HPDcacheCfg.u.wbEn;
+    //  Widths of the error bits travelling with refill data: one per memory flit, replicated per
+    //  access when a flit holds several
+    localparam int unsigned REFILL_ERR_WR_WIDTH =
+        (HPDcacheCfg.u.memDataWidth > HPDcacheCfg.accessWidth) ?
+            HPDcacheCfg.u.memDataWidth / HPDcacheCfg.accessWidth : 1;
+    localparam int unsigned REFILL_ERR_RD_WIDTH = ACCESS_MEM_RATIO;
+
     function automatic logic [HPDcacheCfg.u.wordUserWidth-1:0] and_reduce_user (
         input logic [(HPDcacheCfg.u.wordUserWidth*ACCESS_MEM_RATIO)-1:0] ruser
     );
@@ -233,6 +245,14 @@ import hpdcache_pkg::*;
     hpdcache_refill_data_t   refill_fifo_resp_data_rdata;
     logic [(HPDcacheCfg.u.wordUserWidth*ACCESS_MEM_RATIO)-1:0] refill_fifo_resp_data_ruser;
     logic                    refill_fifo_resp_data_r;
+    logic                    refill_fifo_resp_data_rok;
+
+    //  streaming refills: error of the chunk at the head of the data FIFO, errors of the chunks
+    //  of the current refill (including the current one), and the first flit of a response
+    logic                    refill_chunk_err;
+    logic                    refill_stream_err;
+    logic                    refill_err_q, refill_err_d;
+    logic                    mem_resp_first_q;
 
     logic                    refill_core_rsp_valid;
     hpdcache_req_data_t      refill_core_rsp_rdata;
@@ -353,8 +373,16 @@ import hpdcache_pkg::*;
     //  Refill FSM
     //  {{{
 
+    //      a refill can start once its response has arrived, or with streaming refills, once its
+    //      first chunk has (so that the MSHR is read, and the refill registers set, while writing
+    //      the first chunk)
+    logic refill_start_ok;
+    assign refill_start_ok = refill_fifo_resp_meta_rok &
+                             (!REFILL_STREAM || refill_fifo_resp_meta_rdata.is_inval ||
+                              refill_fifo_resp_data_rok);
+
     //      ask permission to the refill arbiter if there is a pending refill
-    assign refill_req_valid_o  = refill_fsm_q == REFILL_IDLE ? refill_fifo_resp_meta_rok : 1'b0;
+    assign refill_req_valid_o  = refill_fsm_q == REFILL_IDLE ? refill_start_ok : 1'b0;
 
     always_comb
     begin : miss_resp_fsm_comb
@@ -366,6 +394,7 @@ import hpdcache_pkg::*;
         refill_write_data_o     = 1'b0;
         refill_updt_rtab_o      = 1'b0;
         refill_cnt_d            = refill_cnt_q;
+        refill_err_d            = refill_err_q;
 
         refill_dirty_wdata      = refill_dirty_wdata_q;
         refill_dirty_be         = refill_dirty_be_q;
@@ -393,7 +422,7 @@ import hpdcache_pkg::*;
             //  Wait for refill responses
             //  {{{
             REFILL_IDLE: begin
-                if (refill_fifo_resp_meta_rok) begin
+                if (refill_start_ok) begin
                     //  anticipate the activation of the MSHR independently of the grant signal from
                     //  the refill arbiter. This is to avoid the introduction of unnecessary timing
                     //  paths (however there could be a minor augmentation of the power consumption)
@@ -414,6 +443,7 @@ import hpdcache_pkg::*;
 
                             //  initialize the counter for refill words
                             refill_cnt_d = 0;
+                            refill_err_d = 1'b0;
                             refill_fsm_d = REFILL_WRITE;
                         end
                     end
@@ -427,89 +457,93 @@ import hpdcache_pkg::*;
                 automatic logic is_prefetch;
                 automatic hpdcache_uint core_rsp_word;
 
-                //  Respond to the core (when needed)
-                if (refill_cnt_q == 0) begin
-                    core_rsp_word = hpdcache_uint'(mshr_ack_word)/HPDcacheCfg.u.accessWords;
+                //  With streaming refills, wait for each chunk of the refill to arrive
+                if (!REFILL_STREAM || refill_fifo_resp_data_rok) begin
+                    //  Respond to the core (when needed)
+                    if (refill_cnt_q == 0) begin
+                        core_rsp_word = hpdcache_uint'(mshr_ack_word)/HPDcacheCfg.u.accessWords;
 
-                    if (hpdcache_uint'(core_rsp_word) == 0) begin
-                        refill_core_rsp_valid = mshr_ack_need_rsp;
-                        refill_dirty_valid = mshr_ack_dirty;
-                    end
+                        if (hpdcache_uint'(core_rsp_word) == 0) begin
+                            refill_core_rsp_valid = mshr_ack_need_rsp;
+                            refill_dirty_valid = mshr_ack_dirty;
+                        end
 
-                    refill_core_rsp_sid = mshr_ack_src_id;
-                    refill_core_rsp_tid = mshr_ack_req_id;
-                    refill_core_rsp_error = refill_is_error_o;
-                    refill_core_rsp_word = hpdcache_word_t'(
-                        hpdcache_uint'(mshr_ack_word)/HPDcacheCfg.u.reqWords);
-                end else begin
-                    automatic hpdcache_uint refill_cnt;
-
-                    core_rsp_word = hpdcache_uint'(refill_core_rsp_word_q)/
-                                                   HPDcacheCfg.u.accessWords;
-                    refill_cnt = hpdcache_uint'(refill_cnt_q)/HPDcacheCfg.u.accessWords;
-
-                    if (core_rsp_word == refill_cnt) begin
-                        refill_core_rsp_valid = refill_need_rsp_q;
-                        refill_dirty_valid = refill_dirty_q;
-                    end
-
-                    refill_core_rsp_sid = refill_sid_q;
-                    refill_core_rsp_tid = refill_tid_q;
-                    refill_core_rsp_error = refill_is_error_o;
-                    refill_core_rsp_word = hpdcache_word_t'(
-                        hpdcache_uint'(refill_core_rsp_word_q)/HPDcacheCfg.u.reqWords);
-                end
-
-                //  Write the the data in the cache data array
-                if (refill_cnt_q == 0) begin
-                    refill_set_o = mshr_ack_cache_set;
-                    refill_way = mshr_ack_cache_way;
-                    is_prefetch = mshr_ack_is_prefetch;
-                    refill_dirty = mshr_ack_dirty;
-                    refill_dirty_wdata = mshr_ack_wdata;
-                    refill_dirty_be = mshr_ack_be;
-                    refill_dirty_wuser = HPDcacheCfg.u.userEn ? mshr_ack_wuser : '0;
-                end else begin
-                    refill_set_o = refill_set_q;
-                    refill_way = refill_way_q;
-                    is_prefetch = refill_is_prefetch_q;
-                    refill_dirty = refill_dirty_q;
-                    refill_dirty_wdata = refill_dirty_wdata_q;
-                    refill_dirty_be = refill_dirty_be_q;
-                    refill_dirty_wuser = HPDcacheCfg.u.userEn ? refill_dirty_wuser_q : '0;
-                end
-                refill_write_data_o = ~refill_is_error_o;
-
-                //  Consume chunk of data from the FIFO buffer in the memory interface
-                refill_fifo_resp_data_r = 1'b1;
-
-                //  Update directory on the last chunk of data
-                refill_cnt_d = refill_cnt_q + hpdcache_word_t'(HPDcacheCfg.u.accessWords);
-
-                if (hpdcache_uint'(refill_cnt_q) == REFILL_LAST_CHUNK_WORD) begin
-                    if (REFILL_LAST_CHUNK_WORD == 0) begin
-                        //  Special case: if the cache-line data can be written in a single cycle,
-                        //  wait an additional cycle to write the directory. This allows to prevent
-                        //  a RAM-to-RAM timing path between the MSHR and the DIR.
-                        refill_fsm_d = REFILL_WRITE_DIR;
+                        refill_core_rsp_sid = mshr_ack_src_id;
+                        refill_core_rsp_tid = mshr_ack_req_id;
+                        refill_core_rsp_error = refill_is_error_o;
+                        refill_core_rsp_word = hpdcache_word_t'(
+                            hpdcache_uint'(mshr_ack_word)/HPDcacheCfg.u.reqWords);
                     end else begin
-                        //  Write the new entry in the cache directory
-                        refill_write_dir_o = 1'b1;
+                        automatic hpdcache_uint refill_cnt;
 
-                        //  Update the victim selection. Only in the following cases:
-                        //  - There is no error in response AND
-                        //  - It is a prefetch and the cfg_prefetch_updt_sel_victim_i is set OR
-                        //  - It is a read miss.
-                        refill_updt_sel_victim_o  =  ~refill_is_error_o &
-                                                    (~is_prefetch | cfg_prefetch_updt_sel_victim_i);
+                        core_rsp_word = hpdcache_uint'(refill_core_rsp_word_q)/
+                                                       HPDcacheCfg.u.accessWords;
+                        refill_cnt = hpdcache_uint'(refill_cnt_q)/HPDcacheCfg.u.accessWords;
 
-                        //  Update dependency flags in the retry table
-                        refill_updt_rtab_o  = 1'b1;
+                        if (core_rsp_word == refill_cnt) begin
+                            refill_core_rsp_valid = refill_need_rsp_q;
+                            refill_dirty_valid = refill_dirty_q;
+                        end
 
-                        //  consume the response from the network
-                        refill_fifo_resp_meta_r = 1'b1;
+                        refill_core_rsp_sid = refill_sid_q;
+                        refill_core_rsp_tid = refill_tid_q;
+                        refill_core_rsp_error = refill_is_error_o;
+                        refill_core_rsp_word = hpdcache_word_t'(
+                            hpdcache_uint'(refill_core_rsp_word_q)/HPDcacheCfg.u.reqWords);
+                    end
 
-                        refill_fsm_d = REFILL_IDLE;
+                    //  Write the the data in the cache data array
+                    if (refill_cnt_q == 0) begin
+                        refill_set_o = mshr_ack_cache_set;
+                        refill_way = mshr_ack_cache_way;
+                        is_prefetch = mshr_ack_is_prefetch;
+                        refill_dirty = mshr_ack_dirty;
+                        refill_dirty_wdata = mshr_ack_wdata;
+                        refill_dirty_be = mshr_ack_be;
+                        refill_dirty_wuser = HPDcacheCfg.u.userEn ? mshr_ack_wuser : '0;
+                    end else begin
+                        refill_set_o = refill_set_q;
+                        refill_way = refill_way_q;
+                        is_prefetch = refill_is_prefetch_q;
+                        refill_dirty = refill_dirty_q;
+                        refill_dirty_wdata = refill_dirty_wdata_q;
+                        refill_dirty_be = refill_dirty_be_q;
+                        refill_dirty_wuser = HPDcacheCfg.u.userEn ? refill_dirty_wuser_q : '0;
+                    end
+                    refill_write_data_o = ~refill_is_error_o;
+
+                    //  Consume chunk of data from the FIFO buffer in the memory interface
+                    refill_fifo_resp_data_r = 1'b1;
+                    refill_err_d = refill_stream_err;
+
+                    //  Update directory on the last chunk of data
+                    refill_cnt_d = refill_cnt_q + hpdcache_word_t'(HPDcacheCfg.u.accessWords);
+
+                    if (hpdcache_uint'(refill_cnt_q) == REFILL_LAST_CHUNK_WORD) begin
+                        if (REFILL_LAST_CHUNK_WORD == 0) begin
+                            //  Special case: if the cache-line data can be written in a single cycle,
+                            //  wait an additional cycle to write the directory. This allows to prevent
+                            //  a RAM-to-RAM timing path between the MSHR and the DIR.
+                            refill_fsm_d = REFILL_WRITE_DIR;
+                        end else begin
+                            //  Write the new entry in the cache directory
+                            refill_write_dir_o = 1'b1;
+
+                            //  Update the victim selection. Only in the following cases:
+                            //  - There is no error in response AND
+                            //  - It is a prefetch and the cfg_prefetch_updt_sel_victim_i is set OR
+                            //  - It is a read miss.
+                            refill_updt_sel_victim_o  =  ~refill_is_error_o &
+                                                        (~is_prefetch | cfg_prefetch_updt_sel_victim_i);
+
+                            //  Update dependency flags in the retry table
+                            refill_updt_rtab_o  = 1'b1;
+
+                            //  consume the response from the network
+                            refill_fifo_resp_meta_r = 1'b1;
+
+                            refill_fsm_d = REFILL_IDLE;
+                        end
                     end
                 end
             end
@@ -563,7 +597,13 @@ import hpdcache_pkg::*;
         endcase
     end
 
-    assign refill_is_error_o = (refill_fifo_resp_meta_rdata.r_error == HPDCACHE_MEM_RESP_NOK);
+    //  With streaming refills, the metadata is pushed with the first flit, before the error of the
+    //  following ones is known: the error of a refill is accumulated from that of its chunks as
+    //  they are written (so that a response to the core, or the directory entry, also accounts
+    //  for those of the chunks before)
+    assign refill_stream_err = refill_err_q | ((refill_fsm_q == REFILL_WRITE) & refill_chunk_err);
+    assign refill_is_error_o = REFILL_STREAM ? refill_stream_err :
+                               (refill_fifo_resp_meta_rdata.r_error == HPDCACHE_MEM_RESP_NOK);
 
     assign refill_busy_o  = (refill_fsm_q != REFILL_IDLE);
     assign refill_nline_o = {refill_tag_q, refill_set_q};
@@ -711,10 +751,40 @@ import hpdcache_pkg::*;
         .wlast_i(mem_resp_i.mem_resp_r_last),
 
         .r_i    (refill_fifo_resp_data_r),
-        .rok_o  (/* unused */),
+        .rok_o  (refill_fifo_resp_data_rok),
         .rdata_o(refill_fifo_resp_data_rdata),
         .rlast_o(/* unused */)
     );
+
+    if (REFILL_STREAM) begin : gen_refill_stream_err
+        //  error of each flit, travelling with its data (written and read with it, so it is never
+        //  full nor empty when the data FIFO is not)
+        logic [REFILL_ERR_RD_WIDTH-1:0] refill_fifo_resp_err_rdata;
+
+        hpdcache_data_resize #(
+            .WR_WIDTH (REFILL_ERR_WR_WIDTH),
+            .RD_WIDTH (REFILL_ERR_RD_WIDTH),
+            .DEPTH    (HPDcacheCfg.u.refillFifoDepth)
+        ) i_err_resize(
+            .clk_i,
+            .rst_ni,
+
+            .w_i    (refill_fifo_resp_data_w),
+            .wok_o  (/* use refill_fifo_resp_data_wok */),
+            .wdata_i({REFILL_ERR_WR_WIDTH{
+                         mem_resp_i.mem_resp_r_error == HPDCACHE_MEM_RESP_NOK}}),
+            .wlast_i(mem_resp_i.mem_resp_r_last),
+
+            .r_i    (refill_fifo_resp_data_r),
+            .rok_o  (/* use refill_fifo_resp_data_rok */),
+            .rdata_o(refill_fifo_resp_err_rdata),
+            .rlast_o(/* unused */)
+        );
+
+        assign refill_chunk_err = |refill_fifo_resp_err_rdata;
+    end else begin : gen_refill_no_stream_err
+        assign refill_chunk_err = 1'b0;
+    end
 
     if (HPDcacheCfg.u.userEn) begin : gen_refill_fifo_resp_data_ruser_useren
         hpdcache_data_resize #(
@@ -794,14 +864,19 @@ import hpdcache_pkg::*;
         assign refill_user_o = hpdcache_refill_user_t'(clean_user);
     end
 
+    //      The metadata of a refill response is pushed with its last flit, once the whole
+    //      cacheline is buffered, or with streaming refills, with its first flit
+    logic mem_resp_meta_flit;
+    assign mem_resp_meta_flit = REFILL_STREAM ? mem_resp_first_q : mem_resp_i.mem_resp_r_last;
+
     //      The DATA fifo is only used for refill responses
     assign refill_fifo_resp_data_w = mem_resp_valid_i &
-            ((refill_fifo_resp_meta_wok | ~mem_resp_i.mem_resp_r_last) &
+            ((refill_fifo_resp_meta_wok | ~mem_resp_meta_flit) &
             ~mem_resp_inval_i);
 
     //      The METADATA fifo is used for both refill responses and invalidations
     assign refill_fifo_resp_meta_w = mem_resp_valid_i &
-            ((refill_fifo_resp_data_wok & mem_resp_i.mem_resp_r_last) |
+            ((refill_fifo_resp_data_wok & mem_resp_meta_flit) |
             mem_resp_inval_i);
 
     always_comb
@@ -811,9 +886,19 @@ import hpdcache_pkg::*;
             if (mem_resp_inval_i) begin
                 mem_resp_ready_o = refill_fifo_resp_meta_wok;
             end else begin
-                mem_resp_ready_o = (refill_fifo_resp_meta_wok | ~mem_resp_i.mem_resp_r_last) &
+                mem_resp_ready_o = (refill_fifo_resp_meta_wok | ~mem_resp_meta_flit) &
                                     refill_fifo_resp_data_wok;
             end
+        end
+    end
+
+    //      The next refill flit is the first of a response after the last of the previous one
+    always_ff @(posedge clk_i or negedge rst_ni)
+    begin : mem_resp_first_ff
+        if (!rst_ni) begin
+            mem_resp_first_q <= 1'b1;
+        end else if (mem_resp_valid_i && mem_resp_ready_o && !mem_resp_inval_i) begin
+            mem_resp_first_q <= mem_resp_i.mem_resp_r_last;
         end
     end
 
@@ -843,6 +928,7 @@ import hpdcache_pkg::*;
             refill_dirty_be_q <= '0;
             refill_core_rsp_word_q <= '0;
             refill_cnt_q <= '0;
+            refill_err_q <= 1'b0;
         end else begin
             if ((refill_fsm_q == REFILL_WRITE) && (refill_cnt_q == 0)) begin
                 refill_set_q <= mshr_ack_cache_set;
@@ -860,6 +946,7 @@ import hpdcache_pkg::*;
                 refill_core_rsp_word_q <= mshr_ack_word;
             end
             refill_cnt_q <= refill_cnt_d;
+            refill_err_q <= refill_err_d;
         end
     end
     //  }}}
