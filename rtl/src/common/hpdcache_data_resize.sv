@@ -32,6 +32,7 @@ import hpdcache_pkg::*;
     parameter int WR_WIDTH = 0,
     parameter int RD_WIDTH = 0,
     parameter int DEPTH    = 0,
+    parameter bit FEEDTHROUGH = 1'b0, // Equal-width FIFO only
 
     localparam type wdata_t = logic [WR_WIDTH-1:0],
     localparam type rdata_t = logic [RD_WIDTH-1:0]
@@ -106,7 +107,7 @@ end
 else begin : gen_noresize
     hpdcache_fifo_reg #(
         .FIFO_DEPTH     (DEPTH),
-        .FEEDTHROUGH    (1'b0),
+        .FEEDTHROUGH    (FEEDTHROUGH),
         .fifo_data_t    (wdata_t)
     ) fifo_i(
         .clk_i,

@@ -163,6 +163,12 @@ import hpdcache_pkg::*;
     //  its first chunk to its last, so this is only done in read-only caches (no write-through nor
     //  write-back): their pipeline has no dirty data to evict for memory to make progress.
     localparam bit REFILL_STREAM = !HPDcacheCfg.u.wtEn && !HPDcacheCfg.u.wbEn;
+    localparam bit REFILL_SAME_WIDTH_STREAM =
+        REFILL_STREAM && HPDcacheCfg.u.memDataWidth == HPDcacheCfg.accessWidth;
+    localparam bit REFILL_BYPASS = REFILL_SAME_WIDTH_STREAM && HPDcacheCfg.u.refillFifoDepth == 0;
+    // Allow simultaneous push and pop even when both startup beats are buffered.
+    localparam bit REFILL_ELASTIC =
+        REFILL_SAME_WIDTH_STREAM && HPDcacheCfg.u.refillFifoDepth == 2;
     //  Widths of the error bits travelling with refill data: one per memory flit, replicated per
     //  access when a flit holds several
     localparam int unsigned REFILL_ERR_WR_WIDTH =
@@ -722,7 +728,7 @@ import hpdcache_pkg::*;
     };
 
     hpdcache_fifo_reg #(
-        .FIFO_DEPTH  (HPDcacheCfg.u.refillFifoDepth),
+        .FIFO_DEPTH  (REFILL_BYPASS ? 1 : HPDcacheCfg.u.refillFifoDepth),
         .fifo_data_t (mem_resp_metadata_t)
     ) i_r_metadata_fifo (
         .clk_i,
@@ -740,7 +746,8 @@ import hpdcache_pkg::*;
     hpdcache_data_resize #(
         .WR_WIDTH (HPDcacheCfg.u.memDataWidth),
         .RD_WIDTH (HPDcacheCfg.accessWidth),
-        .DEPTH    (HPDcacheCfg.u.refillFifoDepth)
+        .DEPTH    (HPDcacheCfg.u.refillFifoDepth),
+        .FEEDTHROUGH (REFILL_ELASTIC)
     ) i_data_resize(
         .clk_i,
         .rst_ni,
@@ -764,7 +771,8 @@ import hpdcache_pkg::*;
         hpdcache_data_resize #(
             .WR_WIDTH (REFILL_ERR_WR_WIDTH),
             .RD_WIDTH (REFILL_ERR_RD_WIDTH),
-            .DEPTH    (HPDcacheCfg.u.refillFifoDepth)
+            .DEPTH    (HPDcacheCfg.u.refillFifoDepth),
+            .FEEDTHROUGH (REFILL_ELASTIC)
         ) i_err_resize(
             .clk_i,
             .rst_ni,
@@ -790,7 +798,8 @@ import hpdcache_pkg::*;
         hpdcache_data_resize #(
             .WR_WIDTH (HPDcacheCfg.u.wordUserWidth*HPDcacheCfg.wordsPerMemFlit),
             .RD_WIDTH (HPDcacheCfg.u.wordUserWidth*ACCESS_MEM_RATIO),
-            .DEPTH    (HPDcacheCfg.u.refillFifoDepth)
+            .DEPTH    (HPDcacheCfg.u.refillFifoDepth),
+            .FEEDTHROUGH (REFILL_ELASTIC)
         ) i_user_resize(
             .clk_i,
             .rst_ni,
@@ -864,30 +873,40 @@ import hpdcache_pkg::*;
         assign refill_user_o = hpdcache_refill_user_t'(clean_user);
     end
 
-    //      The metadata of a refill response is pushed with its last flit, once the whole
-    //      cacheline is buffered, or with streaming refills, with its first flit
-    logic mem_resp_meta_flit;
-    assign mem_resp_meta_flit = REFILL_STREAM ? mem_resp_first_q : mem_resp_i.mem_resp_r_last;
+    if (REFILL_BYPASS) begin : gen_refill_bypass
+        // Capture the first beat's metadata while backpressuring the memory port.
+        // The producer holds that beat until the refill has the RAM port and writes it.
+        assign refill_fifo_resp_meta_w = mem_resp_valid_i &&
+               (mem_resp_inval_i || (mem_resp_first_q && !refill_fifo_resp_meta_rok));
+        assign refill_fifo_resp_data_w = mem_resp_valid_i && !mem_resp_inval_i;
+        assign mem_resp_ready_o = mem_resp_valid_i &&
+               (mem_resp_inval_i ? refill_fifo_resp_meta_wok : refill_fifo_resp_data_wok);
+    end else begin : gen_refill_buffered
+        //      The metadata of a refill response is pushed with its last flit, once the whole
+        //      cacheline is buffered, or with streaming refills, with its first flit
+        logic mem_resp_meta_flit;
+        assign mem_resp_meta_flit = REFILL_STREAM ? mem_resp_first_q : mem_resp_i.mem_resp_r_last;
 
-    //      The DATA fifo is only used for refill responses
-    assign refill_fifo_resp_data_w = mem_resp_valid_i &
-            ((refill_fifo_resp_meta_wok | ~mem_resp_meta_flit) &
-            ~mem_resp_inval_i);
+        //      The DATA fifo is only used for refill responses
+        assign refill_fifo_resp_data_w = mem_resp_valid_i &
+                ((refill_fifo_resp_meta_wok | ~mem_resp_meta_flit) &
+                ~mem_resp_inval_i);
 
-    //      The METADATA fifo is used for both refill responses and invalidations
-    assign refill_fifo_resp_meta_w = mem_resp_valid_i &
-            ((refill_fifo_resp_data_wok & mem_resp_meta_flit) |
-            mem_resp_inval_i);
+        //      The METADATA fifo is used for both refill responses and invalidations
+        assign refill_fifo_resp_meta_w = mem_resp_valid_i &
+                ((refill_fifo_resp_data_wok & mem_resp_meta_flit) |
+                mem_resp_inval_i);
 
-    always_comb
-    begin : mem_resp_ready_comb
-        mem_resp_ready_o = 1'b0;
-        if (mem_resp_valid_i) begin
-            if (mem_resp_inval_i) begin
-                mem_resp_ready_o = refill_fifo_resp_meta_wok;
-            end else begin
-                mem_resp_ready_o = (refill_fifo_resp_meta_wok | ~mem_resp_meta_flit) &
-                                    refill_fifo_resp_data_wok;
+        always_comb
+        begin : mem_resp_ready_comb
+            mem_resp_ready_o = 1'b0;
+            if (mem_resp_valid_i) begin
+                if (mem_resp_inval_i) begin
+                    mem_resp_ready_o = refill_fifo_resp_meta_wok;
+                end else begin
+                    mem_resp_ready_o = (refill_fifo_resp_meta_wok | ~mem_resp_meta_flit) &
+                                        refill_fifo_resp_data_wok;
+                end
             end
         end
     end
@@ -1079,8 +1098,14 @@ import hpdcache_pkg::*;
     localparam hpdcache_uint REFILL_FIFO_WORDS =
         REFILL_FIFO_WORDS_PER_ENTRY*HPDcacheCfg.u.refillFifoDepth;
 
-    if (REFILL_FIFO_WORDS < HPDcacheCfg.u.clWords) begin : gen_refill_depth_assertion
+    if (!REFILL_BYPASS && !REFILL_ELASTIC && REFILL_FIFO_WORDS < HPDcacheCfg.u.clWords) begin : gen_refill_depth_assertion
         $fatal(1, "the refill fifo shall be able to buffer at least a full cacheline");
+    end
+
+    if (REFILL_BYPASS) begin : gen_refill_bypass_assertion
+        no_interleaved_invalidation: assert property (@(posedge clk_i) disable iff (!rst_ni)
+            (refill_busy_o && !mem_resp_first_q) |-> !(mem_resp_valid_i && mem_resp_inval_i))
+            else $error("a bypassed refill cannot be interrupted by an invalidation");
     end
 `endif
     //  }}}

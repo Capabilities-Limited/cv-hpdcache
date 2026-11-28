@@ -20,6 +20,7 @@ import hpdcache_pkg::*;
     parameter hpdcache_cfg_t HPDcacheCfg = '0,
 
     parameter type wbuf_timecnt_t = logic,
+    parameter bit UncachedLoadOnly = 1'b0,
 
     //  Request Interface Definitions
     //  {{{
@@ -845,6 +846,10 @@ import hpdcache_pkg::*;
 
     //  Uncacheable request handler
     //  {{{
+    hpdcache_uc_op_t uncached_op;
+    // Instruction fetches only use the load half of the uncached handler.
+    assign uncached_op = UncachedLoadOnly ? '{is_ld: uc_req_op.is_ld, default: '0} : uc_req_op;
+
     hpdcache_uncached #(
         .HPDcacheCfg                   (HPDcacheCfg),
         .hpdcache_nline_t              (hpdcache_nline_t),
@@ -872,7 +877,7 @@ import hpdcache_pkg::*;
 
         .req_valid_i                   (uc_req_valid),
         .req_ready_o                   (uc_ready),
-        .req_op_i                      (uc_req_op),
+        .req_op_i                      (uncached_op),
         .req_addr_i                    (uc_req_addr),
         .req_size_i                    (uc_req_size),
         .req_data_i                    (uc_req_data),

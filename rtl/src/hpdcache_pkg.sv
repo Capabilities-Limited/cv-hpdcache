@@ -419,7 +419,8 @@ package hpdcache_pkg;
         int unsigned cbufEntries;
         //  Use feedthrough FIFOs from the refill handler to the core
         bit refillCoreRspFeedthrough;
-        //  Depth of the refill FIFO
+        //  Depth of the refill FIFO. Same-width read-only refills support bypass (zero)
+        //  or a two-entry FIFO that can accept a beat while draining a full queue.
         int refillFifoDepth;
         //  Write-Buffer number of entries in the directory
         int unsigned wbufDirEntries;
